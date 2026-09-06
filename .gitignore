@@ -1,0 +1,10 @@
+.DS_Store
+
+# Backend (Python)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.env
+
+# Frontend build output (rebuilt on deploy; not committed)
+frontend/dist/

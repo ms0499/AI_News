@@ -1,0 +1,48 @@
+.filterbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.filterbar__sections {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filterbar__tab {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filterbar__tab:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.filterbar__tab--active {
+  background: var(--gradient);
+  border-color: transparent;
+  color: #0a0b0f;
+  font-weight: 700;
+}
+
+.filterbar__active {
+  display: flex;
+  gap: 8px;
+}
+
+.filterbar__active .chip {
+  cursor: pointer;
+}
