@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    MetaData,
     String,
     Text,
 )
@@ -17,7 +18,7 @@ def utcnow():
 
 
 class Base(DeclarativeBase):
-    pass
+    metadata = MetaData(schema="ai_news")
 
 
 class Source(Base):

@@ -1,0 +1,12 @@
+-- Optional — only needed if the app connects as a DIFFERENT, less-privileged
+-- role than whichever role you're running these scripts as in DBeaver (e.g. you
+-- ran 001-003 as the `postgres` superuser, but AI_NEWS_DB_URI in .env uses `appuser`).
+-- Edit the role name below to match AI_NEWS_DB_URI, then run.
+
+-- GRANT USAGE ON SCHEMA ai_news TO appuser;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ai_news TO appuser;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA ai_news TO appuser;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA ai_news
+--     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO appuser;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA ai_news
+--     GRANT USAGE, SELECT ON SEQUENCES TO appuser;

@@ -16,11 +16,19 @@ frontend.
 
 ### 1. Database
 
-Create a Postgres database (local for dev, or your NAS instance for real use):
+Create a Postgres database (local for dev, or your NAS instance for real use), then run
+the SQL files in [`backend/sql/`](backend/sql/) in order (001, 002, 003, and optionally 004)
+— e.g. open them in DBeaver against that database and execute each one. They create the
+`ai_news` schema and all tables/indexes; `backend/models.py` is pinned to that same schema,
+so the app and the manually-created tables always agree.
 
 ```bash
 createdb ai_news
 ```
+
+The app can also create tables itself via `init_db()` (`Base.metadata.create_all`, idempotent —
+harmless to run even if the SQL files already created everything), but the SQL files are the
+source of truth to review/run by hand.
 
 ### 2. Backend
 
@@ -82,7 +90,10 @@ cp .env.example .env
 #   CORS_ORIGIN=https://ainews.damsm.com
 #   (optionally) GEMINI_API_KEY / NEWSAPI_KEY
 
-# 4) Create the database (separate from stock_app/STOCKS, same Postgres server)
+# 4) Create the database (separate from stock_app/STOCKS, same Postgres server),
+#    then run backend/sql/001_create_schema.sql, 002_create_tables.sql, and
+#    003_create_indexes.sql against it (e.g. via DBeaver) to create the ai_news
+#    schema and tables.
 createdb ai_news   # or: psql -c "CREATE DATABASE ai_news;"
 
 # 5) Build the frontend (Flask serves this static bundle in production)
