@@ -19,7 +19,7 @@ COMPANY_KEYWORDS = {
     "DeepSeek": ["deepseek"],
     "Alibaba": ["alibaba", "qwen"],
     "Moonshot AI": ["moonshot", "kimi"],
-    "Perplexity": ["perplexity"],
+    "Perplexity": ["perplexity ai", "perplexity.ai"],
 }
 
 # Maker for each tracked model keyword, so a release always gets attributed to
@@ -49,11 +49,18 @@ TOPIC_KEYWORDS = {
     "hiring": ["hires", "hiring", "departs", "resigns", "joins"],
 }
 
-SECTION_TOPIC_MAP = {
-    "release": "models",
-    "benchmark": "models",
-    "research": "papers",
-}
+# Priority order for turning detected topics into a section. Checked in this
+# exact order (not TOPIC_KEYWORDS' order) so a research paper doesn't get
+# misfiled as "models" and have the models it discusses as baselines recorded
+# as fake releases. "research" (driven mostly by "arxiv") goes first because
+# paper abstracts routinely contain "state-of-the-art"/"SOTA" (matching
+# "benchmark") and even the bare word "release" in unrelated prose — an
+# arXiv paper is a paper regardless of that incidental wording.
+SECTION_PRIORITY = [
+    ("research", "papers"),
+    ("release", "models"),
+    ("benchmark", "models"),
+]
 
 
 def classify(title: str, raw_summary: str) -> dict:
@@ -64,9 +71,9 @@ def classify(title: str, raw_summary: str) -> dict:
     topics = [topic for topic, kws in TOPIC_KEYWORDS.items() if any(kw in text for kw in kws)]
 
     section = "news"
-    for topic in topics:
-        if topic in SECTION_TOPIC_MAP:
-            section = SECTION_TOPIC_MAP[topic]
+    for topic, mapped_section in SECTION_PRIORITY:
+        if topic in topics:
+            section = mapped_section
             break
     if section == "news" and companies:
         section = "companies"
