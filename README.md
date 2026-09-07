@@ -106,9 +106,9 @@ cd ../backend
 source .venv/bin/activate
 python -m ingestion.run_ingestion
 
-# 7) Start the app under gunicorn, bound to port 6001 via .env
+# 7) Start the app under gunicorn, bound to port 6001 via .env.
+#    Daemonizes on its own — the prompt returns immediately. Stop with ./stop_gunicorn.sh.
 ./run_gunicorn.sh
-# or detached: nohup ./run_gunicorn.sh > logs/gunicorn.out 2>&1 &
 ```
 
 `ainews.damsm.com` should now serve the dashboard. If it doesn't come up, check that
