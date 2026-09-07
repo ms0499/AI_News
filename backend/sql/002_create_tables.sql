@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS ai_news.articles (
     source_id    INTEGER REFERENCES ai_news.sources(id),
     title        TEXT         NOT NULL,
     url          TEXT         NOT NULL UNIQUE,
-    author       VARCHAR(200),
+    author       TEXT,
     published_at TIMESTAMPTZ,
     fetched_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
     raw_summary  TEXT,

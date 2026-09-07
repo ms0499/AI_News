@@ -51,7 +51,7 @@ class Article(Base):
     source_id = Column(Integer, ForeignKey("sources.id"))
     title = Column(Text, nullable=False)
     url = Column(Text, nullable=False, unique=True)
-    author = Column(String(200))
+    author = Column(Text)
     published_at = Column(DateTime(timezone=True))
     fetched_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     raw_summary = Column(Text)
