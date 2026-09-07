@@ -5,6 +5,7 @@ backend/.venv/
 backend/__pycache__/
 backend/**/__pycache__/
 backend/.env
+backend/logs/
 
 # Frontend build output (rebuilt on deploy; not committed)
 frontend/dist/
