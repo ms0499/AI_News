@@ -19,7 +19,7 @@ from services.companies import get_or_create_company  # noqa: E402
 from services.db import get_session, init_db  # noqa: E402
 from services.dedup import normalize_url  # noqa: E402
 
-from ingestion.classify import classify  # noqa: E402
+from ingestion.classify import MODEL_TO_COMPANY, classify  # noqa: E402
 from ingestion.sources import (  # noqa: E402
     hn_source,
     model_release_source,
@@ -92,9 +92,16 @@ def ingest_items(session, source_type: str, items: list[dict]) -> tuple[int, int
 def record_model_release(session, article: Article) -> None:
     """One release row per (company, model) pair mentioned in a models-section
     article — later articles about the same model just update the description/
-    date rather than piling up duplicate rows."""
-    company = get_or_create_company(session, article.companies[0])
+    date rather than piling up duplicate rows.
+
+    Each model is attributed to its actual maker via MODEL_TO_COMPANY, not to
+    whichever company the article happens to mention first — a comparison
+    article ("OpenAI reacts to Google's Gemini 3") would otherwise attribute
+    Gemini 3 to OpenAI.
+    """
     for model_name in article.models:
+        company_name = MODEL_TO_COMPANY.get(model_name.lower(), article.companies[0])
+        company = get_or_create_company(session, company_name)
         release = (
             session.query(ModelRelease)
             .filter_by(company_id=company.id, model_name=model_name)

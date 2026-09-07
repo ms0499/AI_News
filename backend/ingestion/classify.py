@@ -22,15 +22,22 @@ COMPANY_KEYWORDS = {
     "Perplexity": ["perplexity"],
 }
 
-MODEL_KEYWORDS = [
-    "gpt-5", "gpt-4", "gpt-4o", "o3", "o1",
-    "claude opus", "claude sonnet", "claude haiku",
-    "gemini 3", "gemini 2.5", "gemini 2.0",
-    "llama 4", "llama 3",
-    "grok 4", "grok 3",
-    "mistral large", "mixtral",
-    "deepseek", "qwen", "kimi k2",
-]
+# Maker for each tracked model keyword, so a release always gets attributed to
+# the company that actually built it — not just whichever company an article
+# happens to mention first (e.g. a "OpenAI reacts to Google's Gemini 3" story).
+MODEL_MAKERS = {
+    "OpenAI": ["gpt-5", "gpt-4", "gpt-4o", "o3", "o1"],
+    "Anthropic": ["claude opus", "claude sonnet", "claude haiku"],
+    "Google DeepMind": ["gemini 3", "gemini 2.5", "gemini 2.0"],
+    "Meta": ["llama 4", "llama 3"],
+    "xAI": ["grok 4", "grok 3"],
+    "Mistral": ["mistral large", "mixtral"],
+    "DeepSeek": ["deepseek"],
+    "Alibaba": ["qwen"],
+    "Moonshot AI": ["kimi k2"],
+}
+MODEL_TO_COMPANY = {kw: company for company, kws in MODEL_MAKERS.items() for kw in kws}
+MODEL_KEYWORDS = list(MODEL_TO_COMPANY)
 
 TOPIC_KEYWORDS = {
     "funding": ["funding", "raises", "series a", "series b", "series c", "valuation", "investment"],

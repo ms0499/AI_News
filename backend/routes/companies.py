@@ -6,13 +6,25 @@ from services.serialize import article_to_dict, company_to_dict
 
 bp = Blueprint("companies", __name__)
 
+PREVIEW_ARTICLE_COUNT = 3
+
 
 @bp.get("/api/companies")
 def list_companies():
     session = get_session()
     try:
         companies = session.query(Company).order_by(Company.name).all()
-        return jsonify({"companies": [company_to_dict(c) for c in companies]})
+        result = []
+        for company in companies:
+            recent = (
+                session.query(Article)
+                .filter(Article.companies.contains([company.name]))
+                .order_by(Article.published_at.desc().nullslast())
+                .limit(PREVIEW_ARTICLE_COUNT)
+                .all()
+            )
+            result.append(company_to_dict(company, recent_articles=recent))
+        return jsonify({"companies": result})
     finally:
         session.close()
 

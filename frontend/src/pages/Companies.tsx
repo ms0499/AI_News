@@ -33,11 +33,37 @@ export default function Companies() {
 
       <div className="company-grid">
         {companies.map((company) => (
-          <Link className="company-card" to={`/companies/${company.slug}`} key={company.id}>
-            <div className="company-card__avatar">{company.name.charAt(0)}</div>
-            <div className="company-card__name">{company.name}</div>
-            {company.description && <p className="company-card__desc">{company.description}</p>}
-          </Link>
+          <div className="company-box" key={company.id}>
+            <Link className="company-box__header" to={`/companies/${company.slug}`}>
+              <div className="company-box__avatar">{company.name.charAt(0)}</div>
+              <div>
+                <div className="company-box__name">{company.name}</div>
+                {company.description && <p className="company-box__desc">{company.description}</p>}
+              </div>
+            </Link>
+
+            <div className="company-box__news">
+              {company.recent_articles && company.recent_articles.length > 0 ? (
+                company.recent_articles.map((article) => (
+                  <a
+                    className="company-box__news-item"
+                    href={article.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    key={article.id}
+                  >
+                    {article.title}
+                  </a>
+                ))
+              ) : (
+                <p className="company-box__news-empty">No recent coverage yet.</p>
+              )}
+            </div>
+
+            <Link className="company-box__more" to={`/companies/${company.slug}`}>
+              More from {company.name} →
+            </Link>
+          </div>
         ))}
       </div>
     </>

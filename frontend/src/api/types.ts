@@ -26,6 +26,7 @@ export interface Company {
   slug: string;
   logo_url: string | null;
   description: string | null;
+  recent_articles?: Article[];
 }
 
 export interface CompaniesResponse {
