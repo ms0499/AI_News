@@ -77,7 +77,7 @@ pip install -r requirements.txt
 
 # 3) Configure .env — PORT=6001 is the important one (matches the tunnel's ingress)
 cp .env.example .env
-#   AI_NEWS_DB_URI=postgresql+psycopg2://appuser:PASSWORD@localhost:5432/ai_news
+#   AI_NEWS_DB_URI=postgresql+pg8000://appuser:PASSWORD@localhost:5432/ai_news
 #   PORT=6001
 #   CORS_ORIGIN=https://ainews.damsm.com
 #   (optionally) GEMINI_API_KEY / NEWSAPI_KEY
