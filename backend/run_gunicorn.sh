@@ -21,6 +21,22 @@ if [[ -f .venv/bin/activate ]]; then
 fi
 
 mkdir -p logs
+rm -f logs/gunicorn.pid
 
 gunicorn -c gunicorn.conf.py --daemon --pid logs/gunicorn.pid app:app
-echo "Started. PID: $(cat logs/gunicorn.pid). Logs in logs/. Stop with ./stop_gunicorn.sh"
+
+# --daemon detaches immediately, so a startup failure (bad import, port in
+# use, bad .env value, ...) shows up only in the error log, never on this
+# terminal. Give it a moment, then confirm the pidfile actually appeared.
+for _ in $(seq 1 20); do
+    [[ -f logs/gunicorn.pid ]] && break
+    sleep 0.25
+done
+
+if [[ -f logs/gunicorn.pid ]]; then
+    echo "Started. PID: $(cat logs/gunicorn.pid). Logs in logs/. Stop with ./stop_gunicorn.sh"
+else
+    echo "gunicorn did not start (no pidfile after 5s). Last lines of logs/gunicorn_error.log:" >&2
+    tail -n 30 logs/gunicorn_error.log >&2 2>/dev/null || echo "(no error log found)" >&2
+    exit 1
+fi
