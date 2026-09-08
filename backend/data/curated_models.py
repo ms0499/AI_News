@@ -21,6 +21,11 @@ inferred from release dates, since "best" isn't always "most recent".
 CURATED_MODELS: dict[str, list[dict]] = {
     "openai": [
         {
+            "model_name": "GPT-6 Astra",
+            "release_date": "2026-09-03",
+            "description": "OpenAI's current flagship model — best for frontier-level reasoning and agentic coding, though its rollout drew scrutiny over training-data practices.",
+        },
+        {
             "model_name": "GPT-4o",
             "release_date": "2024-05-13",
             "description": "Fast, natively multimodal model (text, vision, audio) — best for everyday assistant tasks and real-time conversation.",
@@ -170,7 +175,7 @@ ENRICHED_DESCRIPTIONS: dict[tuple[str, str], str] = {
 # One (slug, model_name) pair per company — its current flagship model.
 # Matched case-insensitively against model_releases.model_name.
 FLAGSHIP_MODELS: dict[str, str] = {
-    "openai": "o1",
+    "openai": "GPT-6 Astra",
     "anthropic": "Claude Opus",
     "google-deepmind": "Gemini 3",
     "meta": "Llama 3",

@@ -26,22 +26,33 @@ COMPANY_KEYWORDS = {
 # the company that actually built it — not just whichever company an article
 # happens to mention first (e.g. a "OpenAI reacts to Google's Gemini 3" story).
 MODEL_MAKERS = {
-    "OpenAI": ["gpt-5", "gpt-4", "gpt-4o", "o3", "o1"],
+    "OpenAI": ["gpt-6", "gpt-5", "gpt-4", "gpt-4o", "o3", "o1"],
     "Anthropic": ["claude opus", "claude sonnet", "claude haiku"],
     "Google DeepMind": ["gemini 3", "gemini 2.5", "gemini 2.0"],
-    "Meta": ["llama 4", "llama 3"],
+    "Meta": ["llama 4", "llama 3", "muse glimmer"],
     "xAI": ["grok 4", "grok 3"],
     "Mistral": ["mistral large", "mixtral"],
     "DeepSeek": ["deepseek"],
     "Alibaba": ["qwen"],
     "Moonshot AI": ["kimi k2"],
+    "Nvidia": ["nemotron"],
 }
 MODEL_TO_COMPANY = {kw: company for company, kws in MODEL_MAKERS.items() for kw in kws}
 MODEL_KEYWORDS = list(MODEL_TO_COMPANY)
 
+# str.title() mangles keywords with digits/hyphens (e.g. "gpt-4o" -> "Gpt-4O",
+# "o1" -> "O1" is fine but "gpt-6" -> "Gpt-6") — spell out the ones that would
+# come out wrong so tagged model names actually look like real model names.
+MODEL_DISPLAY_NAMES = {
+    "gpt-6": "GPT-6",
+    "gpt-5": "GPT-5",
+    "gpt-4": "GPT-4",
+    "gpt-4o": "GPT-4o",
+}
+
 TOPIC_KEYWORDS = {
     "funding": ["funding", "raises", "series a", "series b", "series c", "valuation", "investment"],
-    "release": ["release", "launches", "unveils", "announces", "rolls out"],
+    "release": ["release", "launches", "unveils", "announces", "rolls out", "introducing", "previewing"],
     "benchmark": ["benchmark", "leaderboard", "outperforms", "state-of-the-art", "sota"],
     "regulation": ["regulation", "policy", "lawsuit", "antitrust", "safety", "government"],
     "research": ["paper", "research", "arxiv", "study"],
@@ -76,11 +87,26 @@ OFFICIAL_BLOG_SOURCES = {
     "Mistral AI",
 }
 
+# Which tracked company each official blog belongs to. A post on a company's
+# own blog rarely repeats the company's name in the title/summary (e.g.
+# OpenAI's "GPT-6 Astra: A new generation of intelligence" never says
+# "OpenAI"), so keyword matching alone misses it — attribute it directly.
+BLOG_SOURCE_COMPANY = {
+    "OpenAI": "OpenAI",
+    "Anthropic": "Anthropic",
+    "Google DeepMind": "Google DeepMind",
+    "Hugging Face": "Hugging Face",
+    "Mistral AI": "Mistral",
+}
+
 
 def classify(title: str, raw_summary: str, source_name: str | None = None) -> dict:
     text = f"{title} {raw_summary or ''}".lower()
 
     companies = [name for name, kws in COMPANY_KEYWORDS.items() if any(kw in text for kw in kws)]
+    own_company = BLOG_SOURCE_COMPANY.get(source_name or "")
+    if own_company and own_company not in companies:
+        companies.append(own_company)
     models = [m for m in MODEL_KEYWORDS if m in text]
     topics = [topic for topic, kws in TOPIC_KEYWORDS.items() if any(kw in text for kw in kws)]
 
@@ -96,7 +122,7 @@ def classify(title: str, raw_summary: str, source_name: str | None = None) -> di
 
     return {
         "companies": companies,
-        "models": [m.title() for m in models],
+        "models": [MODEL_DISPLAY_NAMES.get(m, m.title()) for m in models],
         "topics": topics,
         "section": section,
     }
