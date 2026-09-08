@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from data.curated_models import CURATED_MODELS, ENRICHED_DESCRIPTIONS  # noqa: E402
+from data.curated_models import CURATED_MODELS, ENRICHED_DESCRIPTIONS, FLAGSHIP_MODELS  # noqa: E402
 from models import Company, ModelRelease  # noqa: E402
 from services.db import get_session  # noqa: E402
 
@@ -30,7 +30,7 @@ def _parse_date(value: str | None):
 
 def run() -> dict:
     session = get_session()
-    inserted = enriched = skipped_no_company = 0
+    inserted = enriched = skipped_no_company = flagged = 0
     try:
         for slug, models in CURATED_MODELS.items():
             company = session.query(Company).filter_by(slug=slug).one_or_none()
@@ -71,13 +71,31 @@ def run() -> dict:
                 release.description = description
                 enriched += 1
 
+        for slug, model_name in FLAGSHIP_MODELS.items():
+            company = session.query(Company).filter_by(slug=slug).one_or_none()
+            if company is None:
+                continue
+            releases = session.query(ModelRelease).filter_by(company_id=company.id).all()
+            flagship = next((r for r in releases if r.model_name.lower() == model_name.lower()), None)
+            if flagship is None:
+                continue
+            for release in releases:
+                release.is_flagship = release.id == flagship.id
+            flagged += 1
+
         session.commit()
-        return {"inserted": inserted, "enriched": enriched, "skipped_no_company": skipped_no_company}
+        return {
+            "inserted": inserted,
+            "enriched": enriched,
+            "skipped_no_company": skipped_no_company,
+            "flagged": flagged,
+        }
     finally:
         session.close()
 
 
 if __name__ == "__main__":
     result = run()
-    print(f"Inserted {result['inserted']} new model rows, enriched {result['enriched']} descriptions "
+    print(f"Inserted {result['inserted']} new model rows, enriched {result['enriched']} descriptions, "
+          f"flagged {result['flagged']} flagship models "
           f"({result['skipped_no_company']} curated rows skipped — company slug not found).")

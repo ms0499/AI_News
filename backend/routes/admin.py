@@ -45,3 +45,23 @@ def seed_curated_models():
 
     result = run()
     return jsonify(result)
+
+
+@bp.post("/api/admin/seed-curated-pioneers")
+def seed_curated_pioneers():
+    from scripts.seed_curated_pioneers import run
+
+    result = run()
+    return jsonify(result)
+
+
+@bp.post("/api/admin/refresh-leaderboard")
+def refresh_leaderboard():
+    from ingestion.sources.hf_leaderboard_source import fetch_and_store
+
+    session = get_session()
+    try:
+        count = fetch_and_store(session)
+        return jsonify({"rows_written": count})
+    finally:
+        session.close()

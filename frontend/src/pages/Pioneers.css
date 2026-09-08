@@ -1,0 +1,82 @@
+.pioneer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.pioneer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.pioneer-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.pioneer-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pioneer-card__avatar,
+.pioneer-card__photo {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.pioneer-card__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  background: var(--gradient);
+  color: var(--bg);
+}
+
+.pioneer-card__name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.pioneer-card__role {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--cyan);
+}
+
+.pioneer-card__contribution {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.pioneer-card__bio {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.pioneer-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}

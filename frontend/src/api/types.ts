@@ -6,7 +6,7 @@ export interface Article {
   published_at: string | null;
   summary: string | null;
   image_url: string | null;
-  section: "models" | "companies" | "news" | "papers";
+  section: "models" | "companies" | "news" | "papers" | "funding" | "features";
   companies: string[];
   models: string[];
   topics: string[];
@@ -46,8 +46,44 @@ export interface ModelRelease {
   benchmark_links: string[];
   company: string | null;
   company_slug: string | null;
+  is_flagship: boolean;
 }
 
 export interface ModelReleasesResponse {
   releases: ModelRelease[];
+}
+
+export interface PioneerLink {
+  label: string;
+  url: string;
+}
+
+export interface Pioneer {
+  id: number;
+  slug: string;
+  name: string;
+  role: string | null;
+  company_name: string | null;
+  contribution: string | null;
+  bio: string | null;
+  photo_url: string | null;
+  links: PioneerLink[];
+}
+
+export interface PioneersResponse {
+  pioneers: Pioneer[];
+}
+
+export interface LeaderboardEntry {
+  id: number;
+  rank: number;
+  model_name: string;
+  organization: string | null;
+  score: number | null;
+  fetched_at: string | null;
+}
+
+export interface LeaderboardResponse {
+  source: string;
+  entries: LeaderboardEntry[];
 }

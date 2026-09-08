@@ -5,6 +5,8 @@ const LINKS = [
   { to: "/", label: "Feed", end: true },
   { to: "/models", label: "Models" },
   { to: "/companies", label: "Companies" },
+  { to: "/pioneers", label: "Pioneers" },
+  { to: "/leaderboard", label: "Leaderboard" },
 ];
 
 export default function SectionNav() {

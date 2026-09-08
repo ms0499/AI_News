@@ -50,6 +50,7 @@ export default function Models() {
                   <span className="release-row__company">{release.company}</span>
                 )}
                 <span className="release-row__model">{release.model_name}</span>
+                {release.is_flagship && <span className="chip chip--active">★ Flagship</span>}
               </div>
               {release.description && <p className="release-row__description">{release.description}</p>}
             </div>

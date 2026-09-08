@@ -48,4 +48,30 @@ def model_release_to_dict(release) -> dict:
         "benchmark_links": release.benchmark_links or [],
         "company": release.company.name if release.company else None,
         "company_slug": release.company.slug if release.company else None,
+        "is_flagship": bool(release.is_flagship),
+    }
+
+
+def pioneer_to_dict(pioneer) -> dict:
+    return {
+        "id": pioneer.id,
+        "slug": pioneer.slug,
+        "name": pioneer.name,
+        "role": pioneer.role,
+        "company_name": pioneer.company_name,
+        "contribution": pioneer.contribution,
+        "bio": pioneer.bio,
+        "photo_url": pioneer.photo_url,
+        "links": pioneer.links or [],
+    }
+
+
+def leaderboard_entry_to_dict(entry) -> dict:
+    return {
+        "id": entry.id,
+        "rank": entry.rank,
+        "model_name": entry.model_name,
+        "organization": entry.organization,
+        "score": entry.score,
+        "fetched_at": entry.fetched_at.isoformat() if entry.fetched_at else None,
     }

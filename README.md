@@ -131,6 +131,15 @@ listening on `127.0.0.1:6001` on the NAS (`curl localhost:6001/api/health`).
   blocked from most IPs (returns a login wall). The source is wired up and fails gracefully —
   if you want real Reddit coverage, register a Reddit "script" app and switch
   `ingestion/sources/reddit_source.py` to OAuth (e.g. via `praw`).
+- **Features tab**: sourced from company blogs already in `ingestion/sources/rss_source.py`'s RSS
+  list. Anthropic and Mistral AI's feed URLs there currently 404 (no working public RSS found for
+  either) — the source fails gracefully, same as Reddit below, so Features content is limited to
+  OpenAI, Google DeepMind, and Hugging Face until working feeds are found.
+- **Leaderboard page**: pulls Hugging Face's archived "Open LLM Leaderboard" (v2) dataset — real,
+  free, live data, but it ranks community fine-tunes/merges of open-weight models, not frontier
+  closed models (it will never show GPT/Gemini/Claude). Treat it as a secondary "what's trending
+  in the open-weight community" view; the flagship badge on the Models page (curated in
+  `backend/data/curated_models.py`) is the answer to "what's the best model right now."
 - **NewsAPI**: optional; set `NEWSAPI_KEY` in `.env` to enable it. Free tier is rate-limited.
 - **AI summarization/tagging**: optional; set `GEMINI_API_KEY` in `.env` to enable it. Without
   it, articles fall back to rule-based keyword tagging (`ingestion/classify.py`) and the raw

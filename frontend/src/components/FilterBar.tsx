@@ -6,6 +6,8 @@ const SECTIONS: { value: string | null; label: string }[] = [
   { value: "models", label: "Models" },
   { value: "companies", label: "Companies" },
   { value: "papers", label: "Papers" },
+  { value: "funding", label: "Funding" },
+  { value: "features", label: "Features" },
 ];
 
 interface Props {

@@ -10,6 +10,12 @@ yet. `ENRICHED_DESCRIPTIONS` overwrites the description on an existing
 row (matched by company slug + case-insensitive model name) when it's
 missing or is just a HF tag dump — it never touches a row that already
 has a real editorial description (e.g. OpenAI's ingested rows).
+
+`FLAGSHIP_MODELS` names each company's current best/newest model — this is
+the "stays latest until a new one comes" answer to "what's the latest model
+release": when a company ships something better, update its entry here (and
+re-run the seed script) to move the flag. Deliberately manual rather than
+inferred from release dates, since "best" isn't always "most recent".
 """
 
 CURATED_MODELS: dict[str, list[dict]] = {
@@ -159,4 +165,25 @@ ENRICHED_DESCRIPTIONS: dict[tuple[str, str], str] = {
         "mistral",
         "mixtral",
     ): "Mistral's open-weight mixture-of-experts model — best for self-hosted deployments that want strong quality at lower compute cost.",
+}
+
+# One (slug, model_name) pair per company — its current flagship model.
+# Matched case-insensitively against model_releases.model_name.
+FLAGSHIP_MODELS: dict[str, str] = {
+    "openai": "o1",
+    "anthropic": "Claude Opus",
+    "google-deepmind": "Gemini 3",
+    "meta": "Llama 3",
+    "microsoft": "Phi-4",
+    "mistral": "Mistral Large",
+    "deepseek": "DeepSeek-R1",
+    "alibaba": "Qwen2.5",
+    "amazon": "Amazon Nova",
+    "apple": "Apple Intelligence (on-device models)",
+    "cohere": "Command R+",
+    "moonshot-ai": "Kimi",
+    "nvidia": "Nemotron",
+    "perplexity": "Sonar",
+    "stability-ai": "Stable Diffusion",
+    "xai": "Grok",
 }

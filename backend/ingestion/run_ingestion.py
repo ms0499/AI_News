@@ -21,6 +21,8 @@ from services.dedup import normalize_url  # noqa: E402
 
 from ingestion.classify import MODEL_TO_COMPANY, classify  # noqa: E402
 from ingestion.sources import (  # noqa: E402
+    funding_source,
+    hf_leaderboard_source,
     hn_source,
     model_release_source,
     newsapi_source,
@@ -33,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE_MODULES = [
     ("rss", rss_source),
+    ("funding", funding_source),
     ("hn", hn_source),
     ("reddit", reddit_source),
     ("newsapi", newsapi_source),
@@ -58,7 +61,7 @@ def ingest_items(session, source_type: str, items: list[dict]) -> tuple[int, int
             continue
 
         source = get_or_create_source(session, item["source_name"], source_type)
-        tags = classify(item["title"], item.get("raw_summary", ""))
+        tags = classify(item["title"], item.get("raw_summary", ""), item["source_name"])
         ai_result = summarize_and_tag(item["title"], item.get("raw_summary", ""))
 
         article = Article(
@@ -139,6 +142,13 @@ def run() -> None:
 
             run_log.finished_at = datetime.now(timezone.utc)
             session.commit()
+
+        try:
+            n = hf_leaderboard_source.fetch_and_store(session)
+            logger.info("hf_leaderboard: wrote %d rows", n)
+        except Exception:  # separate table, never let this break the main pass
+            session.rollback()
+            logger.exception("hf_leaderboard refresh failed")
     finally:
         session.close()
 

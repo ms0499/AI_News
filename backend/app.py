@@ -4,7 +4,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 
 from config import Config
-from routes import admin, companies, feed, health, models_tracker
+from routes import admin, companies, feed, health, leaderboard, models_tracker, pioneers
 from services.db import init_db
 
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
@@ -19,7 +19,7 @@ def create_app() -> Flask:
 
     CORS(app, resources={r"/api/*": {"origins": Config.CORS_ORIGIN}})
 
-    for bp in (health.bp, feed.bp, models_tracker.bp, companies.bp, admin.bp):
+    for bp in (health.bp, feed.bp, models_tracker.bp, companies.bp, pioneers.bp, leaderboard.bp, admin.bp):
         app.register_blueprint(bp)
 
     @app.get("/")

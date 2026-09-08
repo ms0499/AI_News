@@ -2,7 +2,9 @@ import type {
   CompaniesResponse,
   CompanyDetailResponse,
   FeedResponse,
+  LeaderboardResponse,
   ModelReleasesResponse,
+  PioneersResponse,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -43,4 +45,12 @@ export function fetchCompanies(): Promise<CompaniesResponse> {
 
 export function fetchCompany(slug: string): Promise<CompanyDetailResponse> {
   return getJson<CompanyDetailResponse>(`/api/companies/${encodeURIComponent(slug)}`);
+}
+
+export function fetchPioneers(): Promise<PioneersResponse> {
+  return getJson<PioneersResponse>("/api/pioneers");
+}
+
+export function fetchLeaderboard(): Promise<LeaderboardResponse> {
+  return getJson<LeaderboardResponse>("/api/leaderboard");
 }

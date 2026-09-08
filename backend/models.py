@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     MetaData,
@@ -76,8 +78,36 @@ class ModelRelease(Base):
     description = Column(Text)
     benchmark_links = Column(JSONB, default=list)
     source_article_id = Column(Integer, ForeignKey("articles.id"))
+    is_flagship = Column(Boolean, nullable=False, default=False)
 
     company = relationship("Company", back_populates="model_releases")
+
+
+class Pioneer(Base):
+    __tablename__ = "pioneers"
+
+    id = Column(Integer, primary_key=True)
+    slug = Column(String(200), nullable=False, unique=True)
+    name = Column(String(200), nullable=False)
+    role = Column(String(300))
+    company_name = Column(String(200))
+    contribution = Column(Text)
+    bio = Column(Text)
+    photo_url = Column(Text)
+    links = Column(JSONB, default=list)  # list[{"label": str, "url": str}]
+    sort_order = Column(Integer, nullable=False, default=0)
+
+
+class LeaderboardEntry(Base):
+    __tablename__ = "leaderboard_entries"
+
+    id = Column(Integer, primary_key=True)
+    source = Column(String(50), nullable=False)  # e.g. "hf-open-llm"
+    rank = Column(Integer, nullable=False)
+    model_name = Column(String(300), nullable=False)
+    organization = Column(String(200))
+    score = Column(Float)
+    fetched_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
 class IngestionRun(Base):

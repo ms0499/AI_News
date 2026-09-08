@@ -60,10 +60,24 @@ SECTION_PRIORITY = [
     ("research", "papers"),
     ("release", "models"),
     ("benchmark", "models"),
+    ("funding", "funding"),
 ]
 
+# Company blogs already pulled in by ingestion/sources/rss_source.py. Most of
+# what they publish is product/feature news rather than "companies" gossip or
+# general "news", so a post from one of these gets its own "features" section
+# unless a higher-priority topic (paper, model release, benchmark, funding)
+# already claimed it.
+OFFICIAL_BLOG_SOURCES = {
+    "OpenAI",
+    "Anthropic",
+    "Google DeepMind",
+    "Hugging Face",
+    "Mistral AI",
+}
 
-def classify(title: str, raw_summary: str) -> dict:
+
+def classify(title: str, raw_summary: str, source_name: str | None = None) -> dict:
     text = f"{title} {raw_summary or ''}".lower()
 
     companies = [name for name, kws in COMPANY_KEYWORDS.items() if any(kw in text for kw in kws)]
@@ -75,7 +89,9 @@ def classify(title: str, raw_summary: str) -> dict:
         if topic in topics:
             section = mapped_section
             break
-    if section == "news" and companies:
+    if section == "news" and source_name in OFFICIAL_BLOG_SOURCES:
+        section = "features"
+    elif section == "news" and companies:
         section = "companies"
 
     return {
