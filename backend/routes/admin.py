@@ -37,3 +37,11 @@ def trigger_ingestion():
 
     run()
     return jsonify({"status": "started"})
+
+
+@bp.post("/api/admin/seed-curated-models")
+def seed_curated_models():
+    from scripts.seed_curated_models import run
+
+    result = run()
+    return jsonify(result)
