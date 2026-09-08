@@ -19,6 +19,8 @@ const SECTION_LABEL: Record<Article["section"], string> = {
   companies: "Company",
   news: "News",
   papers: "Paper",
+  funding: "Funding",
+  features: "Feature",
 };
 
 interface Props {
