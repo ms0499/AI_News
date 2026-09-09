@@ -23,9 +23,11 @@ from ingestion.classify import MODEL_TO_COMPANY, classify  # noqa: E402
 from ingestion.sources import (  # noqa: E402
     funding_source,
     hf_leaderboard_source,
+    hf_trending_source,
     hn_source,
     model_release_source,
     newsapi_source,
+    openrouter_models,
     reddit_source,
     rss_source,
 )
@@ -105,10 +107,18 @@ def record_model_release(session, article: Article) -> None:
     for model_name in article.models:
         company_name = MODEL_TO_COMPANY.get(model_name.lower(), article.companies[0])
         company = get_or_create_company(session, company_name)
+        # Only match/create article-derived rows (catalog_key IS NULL). Catalog
+        # rows from the OpenRouter source are authoritative and must not be
+        # clobbered here — and a shared model_name across a catalog row and an
+        # article row would otherwise make one_or_none() raise MultipleResults.
         release = (
             session.query(ModelRelease)
-            .filter_by(company_id=company.id, model_name=model_name)
-            .one_or_none()
+            .filter(
+                ModelRelease.company_id == company.id,
+                ModelRelease.model_name == model_name,
+                ModelRelease.catalog_key.is_(None),
+            )
+            .first()
         )
         if release is None:
             release = ModelRelease(company_id=company.id, model_name=model_name)
@@ -142,6 +152,20 @@ def run() -> None:
 
             run_log.finished_at = datetime.now(timezone.utc)
             session.commit()
+
+        try:
+            n = openrouter_models.fetch_and_store(session)
+            logger.info("openrouter_models: upserted %d catalog rows", n)
+        except Exception:  # catalog refresh, never let it break the main pass
+            session.rollback()
+            logger.exception("openrouter_models refresh failed")
+
+        try:
+            n = hf_trending_source.fetch_and_store(session)
+            logger.info("hf_trending: wrote %d rows", n)
+        except Exception:  # separate table, never let this break the main pass
+            session.rollback()
+            logger.exception("hf_trending refresh failed")
 
         try:
             n = hf_leaderboard_source.fetch_and_store(session)

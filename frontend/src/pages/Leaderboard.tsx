@@ -21,15 +21,15 @@ export default function Leaderboard() {
   return (
     <>
       <div className="page-header">
-        <h1>Leaderboard</h1>
-        <p>Community Open-Weights Leaderboard — via Hugging Face.</p>
+        <h1>Trending Open Models</h1>
+        <p>What the open-source AI community is building with right now — live from Hugging Face.</p>
       </div>
 
       <div className="leaderboard-disclaimer">
-        This tracks community fine-tunes/merges of <strong>open-weight</strong> models scored on
-        Hugging Face's archived Open LLM Leaderboard — it will never show frontier closed models
-        like GPT, Gemini, or Claude. For "what's the best model right now," see the flagship badges
-        on the <Link to="/models">Models</Link> page instead.
+        Ranked by Hugging Face's live <strong>trending</strong> score, so it reflects momentum in the
+        <strong> open-weight</strong> community this week — not a fixed quality benchmark, and it
+        won't include closed models like GPT, Gemini, or Claude. For each lab's current best model,
+        pricing, and context window, see the <Link to="/models">Models</Link> page.
       </div>
 
       {status === "loading" && <StateNotice kind="loading" message="Loading leaderboard…" />}
@@ -49,7 +49,9 @@ export default function Leaderboard() {
                   <div className="leaderboard-row__org">{entry.organization}</div>
                 )}
               </div>
-              <div className="leaderboard-row__score">{entry.score?.toFixed(2)}</div>
+              <div className="leaderboard-row__score">
+                {entry.score != null ? `🔥 ${Math.round(entry.score)}` : ""}
+              </div>
             </div>
           ))}
         </div>

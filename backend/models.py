@@ -80,6 +80,18 @@ class ModelRelease(Base):
     source_article_id = Column(Integer, ForeignKey("articles.id"))
     is_flagship = Column(Boolean, nullable=False, default=False)
 
+    # Live catalog fields, populated from the OpenRouter models API. catalog_key
+    # is the OpenRouter model id and the upsert key; it's NULL on the older
+    # article-derived rows.
+    catalog_key = Column(String(200))
+    version_label = Column(String(200))
+    context_length = Column(Integer)
+    input_price = Column(Float)  # USD per 1M input tokens
+    output_price = Column(Float)  # USD per 1M output tokens
+    modalities = Column(JSONB, default=list)
+    knowledge_cutoff = Column(String(50))
+    reference_url = Column(Text)
+
     company = relationship("Company", back_populates="model_releases")
 
 

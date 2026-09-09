@@ -34,9 +34,15 @@ export function fetchFeed(filters: FeedFilters = {}): Promise<FeedResponse> {
   return getJson<FeedResponse>(`/api/feed${query ? `?${query}` : ""}`);
 }
 
-export function fetchModelReleases(companySlug?: string): Promise<ModelReleasesResponse> {
-  const query = companySlug ? `?company=${encodeURIComponent(companySlug)}` : "";
-  return getJson<ModelReleasesResponse>(`/api/models${query}`);
+export function fetchModelReleases(
+  companySlug?: string,
+  catalogOnly = false,
+): Promise<ModelReleasesResponse> {
+  const params = new URLSearchParams();
+  if (companySlug) params.set("company", companySlug);
+  if (catalogOnly) params.set("catalog", "1");
+  const query = params.toString();
+  return getJson<ModelReleasesResponse>(`/api/models${query ? `?${query}` : ""}`);
 }
 
 export function fetchCompanies(): Promise<CompaniesResponse> {

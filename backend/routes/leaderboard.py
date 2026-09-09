@@ -9,7 +9,7 @@ bp = Blueprint("leaderboard", __name__)
 
 @bp.get("/api/leaderboard")
 def list_leaderboard():
-    source = request.args.get("source", "hf-open-llm")
+    source = request.args.get("source", "hf-trending")
 
     session = get_session()
     try:

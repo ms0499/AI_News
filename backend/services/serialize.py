@@ -49,6 +49,13 @@ def model_release_to_dict(release) -> dict:
         "company": release.company.name if release.company else None,
         "company_slug": release.company.slug if release.company else None,
         "is_flagship": bool(release.is_flagship),
+        "catalog_key": release.catalog_key,
+        "context_length": release.context_length,
+        "input_price": release.input_price,
+        "output_price": release.output_price,
+        "modalities": release.modalities or [],
+        "knowledge_cutoff": release.knowledge_cutoff,
+        "reference_url": release.reference_url,
     }
 
 

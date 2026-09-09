@@ -81,10 +81,12 @@ SECTION_PRIORITY = [
 # already claimed it.
 OFFICIAL_BLOG_SOURCES = {
     "OpenAI",
-    "Anthropic",
     "Google DeepMind",
     "Hugging Face",
     "Mistral AI",
+    "AWS Machine Learning",
+    "Nvidia Blog",
+    "Microsoft Research",
 }
 
 # Which tracked company each official blog belongs to. A post on a company's
@@ -93,10 +95,12 @@ OFFICIAL_BLOG_SOURCES = {
 # "OpenAI"), so keyword matching alone misses it — attribute it directly.
 BLOG_SOURCE_COMPANY = {
     "OpenAI": "OpenAI",
-    "Anthropic": "Anthropic",
     "Google DeepMind": "Google DeepMind",
     "Hugging Face": "Hugging Face",
     "Mistral AI": "Mistral",
+    "AWS Machine Learning": "Amazon",
+    "Nvidia Blog": "Nvidia",
+    "Microsoft Research": "Microsoft",
 }
 
 

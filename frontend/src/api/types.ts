@@ -47,10 +47,24 @@ export interface ModelRelease {
   company: string | null;
   company_slug: string | null;
   is_flagship: boolean;
+  catalog_key: string | null;
+  context_length: number | null;
+  input_price: number | null;
+  output_price: number | null;
+  modalities: string[];
+  knowledge_cutoff: string | null;
+  reference_url: string | null;
+}
+
+export interface ModelGroup {
+  company: string | null;
+  company_slug: string;
+  models: ModelRelease[];
 }
 
 export interface ModelReleasesResponse {
   releases: ModelRelease[];
+  groups: ModelGroup[];
 }
 
 export interface PioneerLink {
