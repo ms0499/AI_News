@@ -14,6 +14,10 @@ class Config:
     AI_SUMMARIZE_ENABLED = os.environ.get("AI_SUMMARIZE_ENABLED", "true").lower() == "true"
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    # Hard cap on Gemini summarize calls per ingestion run, so a surprise backlog
+    # of new articles can never blow the free-tier daily quota in a single pass.
+    # Articles past the cap are still ingested — they just keep their raw summary.
+    AI_SUMMARIZE_MAX_PER_RUN = int(os.environ.get("AI_SUMMARIZE_MAX_PER_RUN", 100))
 
     NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY")
 

@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from config import Config  # noqa: E402
 from models import Article, IngestionRun, ModelRelease, Source  # noqa: E402
 from services.ai_summarize import summarize_and_tag  # noqa: E402
 from services.companies import get_or_create_company  # noqa: E402
@@ -54,7 +55,9 @@ def get_or_create_source(session, name: str, source_type: str) -> Source:
     return source
 
 
-def ingest_items(session, source_type: str, items: list[dict]) -> tuple[int, int]:
+def ingest_items(
+    session, source_type: str, items: list[dict], ai_budget: list[int] | None = None
+) -> tuple[int, int]:
     found = len(items)
     new = 0
     for item in items:
@@ -64,7 +67,17 @@ def ingest_items(session, source_type: str, items: list[dict]) -> tuple[int, int
 
         source = get_or_create_source(session, item["source_name"], source_type)
         tags = classify(item["title"], item.get("raw_summary", ""), item["source_name"])
-        ai_result = summarize_and_tag(item["title"], item.get("raw_summary", ""))
+        # Summarize only while this run still has AI budget left. Past the cap,
+        # ai_result stays None and the article keeps its raw summary — so a large
+        # backlog degrades gracefully instead of exhausting the daily quota.
+        # The budget counts every attempt (not just successes): if the API is
+        # erroring or rate-limited it returns None, and we must not keep hammering
+        # it for every remaining article — the cap is a hard ceiling on calls.
+        ai_result = None
+        if ai_budget is None or ai_budget[0] > 0:
+            if ai_budget is not None:
+                ai_budget[0] -= 1
+            ai_result = summarize_and_tag(item["title"], item.get("raw_summary", ""))
 
         article = Article(
             source_id=source.id,
@@ -131,6 +144,12 @@ def record_model_release(session, article: Article) -> None:
 def run() -> None:
     init_db()
     session = get_session()
+    # Run-wide AI summarize budget, shared across every source module so the cap
+    # is per ingestion pass (not per source). Mutable single-element list so
+    # ingest_items can decrement it in place. None = unlimited (feature off).
+    ai_budget = None
+    if Config.AI_SUMMARIZE_ENABLED:
+        ai_budget = [Config.AI_SUMMARIZE_MAX_PER_RUN]
     try:
         for source_type, module in SOURCE_MODULES:
             run_log = IngestionRun(source_id=None, status="running")
@@ -138,7 +157,7 @@ def run() -> None:
             session.commit()
             try:
                 items = module.fetch_all()
-                found, new = ingest_items(session, source_type, items)
+                found, new = ingest_items(session, source_type, items, ai_budget)
                 run_log.status = "ok"
                 run_log.items_found = found
                 run_log.items_new = new
@@ -152,6 +171,17 @@ def run() -> None:
 
             run_log.finished_at = datetime.now(timezone.utc)
             session.commit()
+
+        if ai_budget is not None:
+            used = Config.AI_SUMMARIZE_MAX_PER_RUN - ai_budget[0]
+            logger.info(
+                "ai_summarize: used %d/%d calls%s",
+                used,
+                Config.AI_SUMMARIZE_MAX_PER_RUN,
+                " (cap reached — remaining articles kept raw summaries)"
+                if ai_budget[0] == 0
+                else "",
+            )
 
         try:
             n = openrouter_models.fetch_and_store(session)
