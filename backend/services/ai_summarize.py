@@ -7,12 +7,28 @@ one, so ingestion never blocks on this.
 
 import json
 import logging
+import time
 
 from config import Config
 
 logger = logging.getLogger(__name__)
 
 _model = None
+_last_call = 0.0  # monotonic timestamp of the last Gemini call, for rate spacing
+
+
+def _throttle() -> None:
+    """Space consecutive Gemini calls at least 60/rate seconds apart so a fast
+    backlog stays under the free-tier per-minute limit and never trips a 429."""
+    global _last_call
+    rate = Config.AI_SUMMARIZE_MAX_PER_MINUTE
+    if rate <= 0:  # spacing disabled
+        return
+    min_interval = 60.0 / rate
+    wait = min_interval - (time.monotonic() - _last_call)
+    if wait > 0:
+        time.sleep(wait)
+    _last_call = time.monotonic()
 
 
 def _get_model():
@@ -46,6 +62,7 @@ def summarize_and_tag(title: str, raw_summary: str) -> dict | None:
     if model is None:
         return None
     try:
+        _throttle()
         response = model.generate_content(
             PROMPT.format(title=title, raw_summary=raw_summary or "")
         )

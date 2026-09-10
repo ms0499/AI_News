@@ -18,6 +18,10 @@ class Config:
     # of new articles can never blow the free-tier daily quota in a single pass.
     # Articles past the cap are still ingested — they just keep their raw summary.
     AI_SUMMARIZE_MAX_PER_RUN = int(os.environ.get("AI_SUMMARIZE_MAX_PER_RUN", 100))
+    # Per-minute throttle on Gemini calls, kept under the free-tier limit (15/min)
+    # with headroom. Calls are spaced 60/rate seconds apart so a fast backlog
+    # can't trip a 429. Set 0 to disable spacing.
+    AI_SUMMARIZE_MAX_PER_MINUTE = int(os.environ.get("AI_SUMMARIZE_MAX_PER_MINUTE", 10))
 
     # --- Benchmark scoreboard generation ---------------------------------------
     # Uses an LLM to produce the "Model Benchmarks" panel. Deliberately a SEPARATE
