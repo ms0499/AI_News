@@ -20,10 +20,21 @@ class Config:
     AI_SUMMARIZE_MAX_PER_RUN = int(os.environ.get("AI_SUMMARIZE_MAX_PER_RUN", 100))
 
     # --- Benchmark scoreboard generation ---------------------------------------
-    # Uses an LLM to produce the "Model Benchmarks" panel. Deliberately a SEPARATE
-    # model from the per-article summarizer above, so this task can use a stronger
-    # (and ideally web-grounded) model. Off by default.
+    # Populates the "Model Benchmarks" panel. Preferred source is the Artificial
+    # Analysis Data API (real measured intelligence/speed/price data, no LLM in the
+    # loop); if no AA key is configured, it falls back to the LLM generator below.
+    # Off by default.
     BENCHMARK_ENABLED = os.environ.get("BENCHMARK_ENABLED", "false").lower() == "true"
+    # Artificial Analysis Data API key (free tier: 1,000 requests/day). Get one at
+    # https://artificialanalysis.ai/insights. When set, this is the primary source
+    # and no LLM/grounded generation request is made — the numbers are measured,
+    # not a model's recollection, so they can't hallucinate or drift.
+    ARTIFICIAL_ANALYSIS_API_KEY = os.environ.get("ARTIFICIAL_ANALYSIS_API_KEY")
+    ARTIFICIAL_ANALYSIS_API_URL = os.environ.get(
+        "ARTIFICIAL_ANALYSIS_API_URL",
+        "https://artificialanalysis.ai/api/v2/data/llms/models",
+    )
+    # --- LLM fallback (used only when no Artificial Analysis key is set) ---------
     BENCHMARK_MODEL = os.environ.get("BENCHMARK_MODEL", "gemini-2.5-pro")
     # Its own key so the benchmark model can even be a different provider/project;
     # falls back to the summarizer's Gemini key when you reuse the same account.

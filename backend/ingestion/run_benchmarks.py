@@ -49,8 +49,11 @@ def run(force: bool = False) -> None:
     if not Config.BENCHMARK_ENABLED:
         logger.info("benchmark: BENCHMARK_ENABLED is false — nothing to do")
         return
-    if not Config.BENCHMARK_API_KEY:
-        logger.warning("benchmark: no API key configured — skipping")
+    if not (Config.ARTIFICIAL_ANALYSIS_API_KEY or Config.BENCHMARK_API_KEY):
+        logger.warning(
+            "benchmark: no source configured — set ARTIFICIAL_ANALYSIS_API_KEY "
+            "(preferred) or a BENCHMARK_API_KEY for the LLM fallback; skipping"
+        )
         return
 
     init_db()
