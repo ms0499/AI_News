@@ -79,7 +79,10 @@ def _generate_raw() -> str | None:
                 if tool
                 else genai.GenerativeModel(Config.BENCHMARK_MODEL)
             )
-            response = model.generate_content(prompt)
+            response = model.generate_content(
+                prompt,
+                request_options={"timeout": Config.BENCHMARK_REQUEST_TIMEOUT},
+            )
             _log_usage(label, response)
             if tool is None and Config.BENCHMARK_USE_GROUNDING:
                 logger.warning(

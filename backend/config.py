@@ -44,6 +44,11 @@ class Config:
     BENCHMARK_MIN_INTERVAL_HOURS = float(
         os.environ.get("BENCHMARK_MIN_INTERVAL_HOURS", 20)
     )
+    # Per-request timeout (seconds) for the benchmark LLM call, so a stalled
+    # endpoint raises DeadlineExceeded instead of hanging the cron forever.
+    BENCHMARK_REQUEST_TIMEOUT = float(
+        os.environ.get("BENCHMARK_REQUEST_TIMEOUT", 120)
+    )
 
     NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY")
 
