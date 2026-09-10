@@ -3,9 +3,9 @@
 --
 --  * benchmark_scores gains per-category indices so the "Model Benchmarks" panel
 --    can rank models by coding / math / agentic ability, not just a single
---    composite intelligence score. Populated by
---    ingestion/sources/artificial_analysis.py; left NULL by the grounded-LLM
---    fallback source (ingestion/sources/benchmark_source.py).
+--    composite intelligence score. Populated from the Artificial Analysis API
+--    in ingestion/sources/benchmark_source.py; left NULL by that module's
+--    grounded-LLM fallback.
 --  * model_releases gains a per-model intelligence score so the Models catalog
 --    page can show and sort by real, independent quality data.
 --

@@ -26,13 +26,9 @@ def list_benchmarks():
         scores = session.query(BenchmarkScore).all()
         generated_at = max((s.generated_at for s in scores), default=None)
         source_note = scores[0].source_note if scores else None
-        # Enabled if either scoreboard source is configured.
-        enabled = bool(
-            (Config.AA_ENABLED and Config.AA_API_KEY) or Config.BENCHMARK_ENABLED
-        )
         return jsonify(
             {
-                "enabled": enabled,
+                "enabled": Config.BENCHMARK_ENABLED,
                 "generated_at": generated_at.isoformat() if generated_at else None,
                 "source_note": source_note,
                 "intelligence": _top(scores, "intelligence", reverse=True),

@@ -18,14 +18,22 @@ blanks the panel.
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 
 import requests
 
 from config import Config
-from models import BenchmarkScore
+from models import BenchmarkScore, ModelRelease
 
 logger = logging.getLogger(__name__)
+
+# Loose key for matching AA model names to catalog names ('GPT-5.1' ~ 'gpt 5 1').
+_NORMALIZE_NAME = re.compile(r"[^a-z0-9]+")
+
+
+def _match_key(name: str) -> str:
+    return _NORMALIZE_NAME.sub(" ", (name or "").lower()).strip()
 
 # Cost is normalized to one "standard task" so the cheapest/most-expensive
 # ranking is comparable across models regardless of their per-token prices.
@@ -253,6 +261,29 @@ def _parse_artificial_analysis(payload) -> list[dict]:
             )
         )
         cost = _standard_task_cost(item)
+        # Per-category indices power the Coding / Math / Agentic leaderboards.
+        # Only the AA source has these; the LLM fallback leaves them NULL.
+        coding = _num(
+            _dig(
+                item,
+                "evaluations.artificial_analysis_coding_index",
+                "artificial_analysis_coding_index",
+            )
+        )
+        math = _num(
+            _dig(
+                item,
+                "evaluations.artificial_analysis_math_index",
+                "artificial_analysis_math_index",
+            )
+        )
+        agentic = _num(
+            _dig(
+                item,
+                "evaluations.artificial_analysis_agentic_index",
+                "artificial_analysis_agentic_index",
+            )
+        )
         # Skip rows with nothing to rank on — an entry with no metric at all is
         # noise in every leaderboard.
         if intelligence is None and speed is None and cost is None:
@@ -264,6 +295,9 @@ def _parse_artificial_analysis(payload) -> list[dict]:
                 "intelligence": intelligence,
                 "speed": speed,
                 "cost": cost,
+                "coding": coding,
+                "math": math,
+                "agentic": agentic,
             }
         )
     return rows
@@ -302,6 +336,30 @@ def _fetch_from_artificial_analysis() -> list[dict] | None:
     return rows
 
 
+def _update_catalog_scores(session, rows: list[dict]) -> int:
+    """Match AA intelligence scores onto existing Models-catalog rows by name so
+    the Models page can show a per-model quality score. Best-effort; returns the
+    number of model_releases rows updated. Only meaningful for AA-sourced rows —
+    the LLM fallback's guessed numbers are not written onto the catalog."""
+    scored = {
+        _match_key(r["model_name"]): r["intelligence"]
+        for r in rows
+        if r.get("intelligence") is not None
+    }
+    if not scored:
+        return 0
+    updated = 0
+    for release in session.query(ModelRelease).all():
+        score = scored.get(_match_key(release.model_name))
+        if score is not None and release.intelligence_index != score:
+            release.intelligence_index = score
+            updated += 1
+    if updated:
+        session.commit()
+    logger.info("benchmark: set intelligence_index on %d catalog rows", updated)
+    return updated
+
+
 def _generate_from_llm() -> list[dict] | None:
     """Fallback: ask the configured LLM to produce the scoreboard. Returns None
     if generation returned nothing or couldn't be parsed."""
@@ -332,6 +390,7 @@ def fetch_and_store(session) -> int:
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     rows = _fetch_from_artificial_analysis()
+    from_aa = bool(rows)
     if rows:
         note = f"Artificial Analysis Data API, {date}"
     else:
@@ -358,4 +417,15 @@ def fetch_and_store(session) -> int:
     for r in rows:
         session.add(BenchmarkScore(source_note=note, **r))
     session.commit()
+
+    # Enrich the Models catalog with per-model intelligence scores, but only from
+    # the real AA data — never from the LLM fallback's guesses. Isolated so a
+    # matching failure can't roll back the committed scoreboard.
+    if from_aa:
+        try:
+            _update_catalog_scores(session, rows)
+        except Exception:
+            session.rollback()
+            logger.exception("benchmark: catalog intelligence_index update failed")
+
     return len(rows)
