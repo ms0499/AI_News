@@ -54,6 +54,7 @@ export interface ModelRelease {
   modalities: string[];
   knowledge_cutoff: string | null;
   reference_url: string | null;
+  intelligence_index: number | null;
 }
 
 export interface ModelGroup {
@@ -109,6 +110,9 @@ export interface BenchmarkScore {
   intelligence: number | null;
   speed: number | null;
   cost: number | null;
+  coding: number | null;
+  math: number | null;
+  agentic: number | null;
 }
 
 export interface BenchmarksResponse {
@@ -116,6 +120,9 @@ export interface BenchmarksResponse {
   generated_at: string | null;
   source_note: string | null;
   intelligence: BenchmarkScore[];
+  coding: BenchmarkScore[];
+  math: BenchmarkScore[];
+  agentic: BenchmarkScore[];
   speed: BenchmarkScore[];
   cost: BenchmarkScore[];
 }

@@ -3,10 +3,13 @@ import { fetchBenchmarks } from "../api/client";
 import type { BenchmarkScore, BenchmarksResponse } from "../api/types";
 import "./BenchmarkPanel.css";
 
-type Metric = "intelligence" | "speed" | "cost";
+type Metric = "intelligence" | "coding" | "math" | "agentic" | "speed" | "cost";
 
 const TABS: { key: Metric; label: string; hint: string }[] = [
   { key: "intelligence", label: "Intelligence", hint: "Composite index — higher is smarter" },
+  { key: "coding", label: "Coding", hint: "Coding & software-engineering index — higher is better" },
+  { key: "math", label: "Math", hint: "Math & quantitative-reasoning index — higher is better" },
+  { key: "agentic", label: "Agentic", hint: "Agentic tool-use index — higher is better" },
   { key: "speed", label: "Speed", hint: "Output tokens/sec — higher is faster" },
   { key: "cost", label: "Cost / task", hint: "USD per standard task — lower is cheaper" },
 ];
@@ -16,9 +19,9 @@ function metricValue(s: BenchmarkScore, m: Metric): number | null {
 }
 
 function formatValue(v: number, m: Metric): string {
-  if (m === "intelligence") return String(Math.round(v));
   if (m === "speed") return `${Math.round(v)} t/s`;
-  return v < 1 ? `$${v.toFixed(3)}` : `$${v.toFixed(2)}`;
+  if (m === "cost") return v < 1 ? `$${v.toFixed(3)}` : `$${v.toFixed(2)}`;
+  return String(Math.round(v)); // index metrics (intelligence/coding/math/agentic)
 }
 
 export default function BenchmarkPanel() {
@@ -34,6 +37,21 @@ export default function BenchmarkPanel() {
       })
       .catch(() => setStatus("error"));
   }, []);
+
+  // Only offer tabs that actually have rows. Coding/math/agentic come back empty
+  // unless the scoreboard is sourced from Artificial Analysis, so they simply
+  // don't appear on the grounded-LLM fallback.
+  const visibleTabs = useMemo(
+    () => TABS.filter((t) => (data?.[t.key]?.length ?? 0) > 0),
+    [data],
+  );
+
+  // Keep the selected tab valid as data loads / sources change.
+  useEffect(() => {
+    if (visibleTabs.length && !visibleTabs.some((t) => t.key === tab)) {
+      setTab(visibleTabs[0].key);
+    }
+  }, [visibleTabs, tab]);
 
   const rows = data ? data[tab] : [];
 
@@ -52,16 +70,19 @@ export default function BenchmarkPanel() {
 
   const activeTab = TABS.find((t) => t.key === tab)!;
   const empty = status === "ready" && rows.length === 0;
+  // "Artificial Analysis, 2026-09-10" -> a data-source credit; the grounded-LLM
+  // note keeps its "AI-generated" framing.
+  const fromAA = (data?.source_note || "").toLowerCase().includes("artificial analysis");
 
   return (
     <aside className="benchmark-panel">
       <div className="benchmark-panel__header">
         <h2>Model Benchmarks</h2>
-        <p>Top 10 models by intelligence, speed &amp; cost</p>
+        <p>Top models by intelligence, coding, math, agentic, speed &amp; cost</p>
       </div>
 
       <div className="benchmark-tabs" role="tablist">
-        {TABS.map((t) => (
+        {(visibleTabs.length ? visibleTabs : TABS).map((t) => (
           <button
             key={t.key}
             role="tab"
@@ -116,7 +137,8 @@ export default function BenchmarkPanel() {
 
       {status === "ready" && data?.source_note && (
         <p className="benchmark-panel__footer">
-          AI-generated from web sources · {data.source_note}
+          {fromAA ? "Source: " : "AI-generated from web sources · "}
+          {data.source_note}
         </p>
       )}
     </aside>

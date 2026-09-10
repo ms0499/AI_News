@@ -25,7 +25,7 @@ from config import Config  # noqa: E402
 from models import BenchmarkScore  # noqa: E402
 from services.db import get_session, init_db  # noqa: E402
 
-from ingestion.sources import benchmark_source  # noqa: E402
+from ingestion.sources import artificial_analysis, benchmark_source  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -46,12 +46,18 @@ def _hours_since_last_refresh(session) -> float | None:
 
 
 def run(force: bool = False) -> None:
-    if not Config.BENCHMARK_ENABLED:
-        logger.info("benchmark: BENCHMARK_ENABLED is false — nothing to do")
-        return
-    if not Config.BENCHMARK_API_KEY:
-        logger.warning("benchmark: no API key configured — skipping")
-        return
+    # Prefer the Artificial Analysis API (real, independent numbers) whenever a
+    # key is configured; otherwise fall back to the grounded-LLM generator.
+    use_aa = bool(Config.AA_ENABLED and Config.AA_API_KEY)
+    if not use_aa:
+        if not Config.BENCHMARK_ENABLED:
+            logger.info(
+                "benchmark: no AA_API_KEY and BENCHMARK_ENABLED is false — nothing to do"
+            )
+            return
+        if not Config.BENCHMARK_API_KEY:
+            logger.warning("benchmark: no AA key and no LLM key configured — skipping")
+            return
 
     init_db()
     session = get_session()
@@ -68,7 +74,12 @@ def run(force: bool = False) -> None:
                 )
                 return
 
-        n = benchmark_source.fetch_and_store(session)
+        source = "Artificial Analysis" if use_aa else "grounded LLM"
+        logger.info("benchmark: refreshing scoreboard via %s", source)
+        if use_aa:
+            n = artificial_analysis.fetch_and_store(session)
+        else:
+            n = benchmark_source.fetch_and_store(session)
         if n:
             logger.info("benchmark: wrote %d rows", n)
         else:

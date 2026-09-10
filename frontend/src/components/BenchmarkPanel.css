@@ -27,6 +27,7 @@
 /* Tabs -------------------------------------------------------------------- */
 .benchmark-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 3px;
   background: var(--bg-elevated);
@@ -34,7 +35,7 @@
 }
 
 .benchmark-tab {
-  flex: 1;
+  flex: 1 1 28%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -151,6 +152,15 @@
 /* Per-metric colours so each tab reads distinctly. */
 .benchmark-row__fill--intelligence {
   background: var(--gradient);
+}
+.benchmark-row__fill--coding {
+  background: linear-gradient(135deg, #a78bfa 0%, #6366f1 100%);
+}
+.benchmark-row__fill--math {
+  background: linear-gradient(135deg, #f472b6 0%, #a855f7 100%);
+}
+.benchmark-row__fill--agentic {
+  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
 }
 .benchmark-row__fill--speed {
   background: linear-gradient(135deg, #4fd1e8 0%, #4ade80 100%);

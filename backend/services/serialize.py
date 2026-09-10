@@ -56,6 +56,7 @@ def model_release_to_dict(release) -> dict:
         "modalities": release.modalities or [],
         "knowledge_cutoff": release.knowledge_cutoff,
         "reference_url": release.reference_url,
+        "intelligence_index": release.intelligence_index,
     }
 
 
@@ -81,6 +82,9 @@ def benchmark_score_to_dict(score) -> dict:
         "intelligence": score.intelligence,
         "speed": score.speed,
         "cost": score.cost,
+        "coding": score.coding,
+        "math": score.math,
+        "agentic": score.agentic,
     }
 
 
