@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import "./SectionNav.css";
 
 const LINKS = [
@@ -13,7 +13,7 @@ export default function SectionNav() {
   return (
     <header className="nav">
       <div className="nav__inner">
-        <div className="nav__brand">
+        <Link to="/" className="nav__brand" aria-label="AI News home">
           <svg className="nav__logo" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
             <defs>
               <linearGradient id="navLogoGradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
@@ -36,7 +36,7 @@ export default function SectionNav() {
             <circle cx="24" cy="22" r="2.1" fill="var(--bg)" />
           </svg>
           AI News
-        </div>
+        </Link>
         <nav className="nav__links">
           {LINKS.map((link) => (
             <NavLink

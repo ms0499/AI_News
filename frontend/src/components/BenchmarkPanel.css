@@ -1,0 +1,178 @@
+.benchmark-panel {
+  position: sticky;
+  top: 88px;
+  align-self: start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 18px 14px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.benchmark-panel__header h2 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.benchmark-panel__header p {
+  margin: 0 0 16px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.benchmark-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.benchmark-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.benchmark-row__rank {
+  flex-shrink: 0;
+  width: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.benchmark-row__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.benchmark-row__company {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.benchmark-row__score {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.benchmark-row__bar {
+  margin-top: 6px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.benchmark-row__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gradient);
+  animation: benchmark-grow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+/* Podium rows get a warmer, distinct fill so the leaders read at a glance. */
+.benchmark-row[data-rank="1"] .benchmark-row__fill {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+.benchmark-row[data-rank="1"] .benchmark-row__score {
+  color: var(--warning);
+}
+
+.benchmark-row__subs {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.benchmark-sub {
+  display: grid;
+  grid-template-columns: 58px 1fr 24px;
+  align-items: center;
+  gap: 8px;
+}
+
+.benchmark-sub__label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.benchmark-sub__track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.benchmark-sub__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  animation: benchmark-grow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.benchmark-sub__fill--reason {
+  background: var(--accent);
+}
+
+.benchmark-sub__fill--code {
+  background: var(--cyan);
+}
+
+.benchmark-sub__val {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.benchmark-panel__footer {
+  margin: 16px 0 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.benchmark-panel__footer code {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+}
+
+@keyframes benchmark-grow {
+  from {
+    width: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .benchmark-panel {
+    position: static;
+    max-height: none;
+  }
+}

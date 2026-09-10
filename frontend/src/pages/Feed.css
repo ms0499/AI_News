@@ -1,16 +1,44 @@
 .feed-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  grid-template-areas: "left main right";
   gap: 24px;
   align-items: start;
 }
 
-.feed-layout__main {
+.feed-layout__left {
+  grid-area: left;
   min-width: 0;
 }
 
-@media (max-width: 900px) {
+.feed-layout__main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.feed-layout__right {
+  grid-area: right;
+  min-width: 0;
+}
+
+/* Medium screens: keep companies beside the feed, drop benchmarks to a full-
+   width row underneath so nothing gets squeezed. */
+@media (max-width: 1180px) {
+  .feed-layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-areas:
+      "left main"
+      "right right";
+  }
+}
+
+/* Narrow / mobile: single symmetric column, feed first. */
+@media (max-width: 860px) {
   .feed-layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "right"
+      "left";
   }
 }

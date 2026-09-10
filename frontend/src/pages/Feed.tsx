@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchFeed } from "../api/client";
 import type { Article } from "../api/types";
 import ArticleCard from "../components/ArticleCard";
+import BenchmarkPanel from "../components/BenchmarkPanel";
 import CompanyModelsWidget from "../components/CompanyModelsWidget";
 import FilterBar from "../components/FilterBar";
 import StateNotice from "../components/StateNotice";
@@ -56,7 +57,9 @@ export default function Feed() {
 
   return (
     <div className="feed-layout">
-      <CompanyModelsWidget />
+      <div className="feed-layout__left">
+        <CompanyModelsWidget />
+      </div>
 
       <div className="feed-layout__main">
         <div className="page-header">
@@ -96,6 +99,10 @@ export default function Feed() {
             )}
           </>
         )}
+      </div>
+
+      <div className="feed-layout__right">
+        <BenchmarkPanel />
       </div>
     </div>
   );
