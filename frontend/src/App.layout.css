@@ -6,10 +6,10 @@
 
 .app__main {
   flex: 1;
-  max-width: 1320px;
+  max-width: 1680px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 24px 80px;
+  padding: 28px 40px 80px;
 }
 
 .page-header {
