@@ -51,7 +51,15 @@ def _generate_raw() -> str | None:
     genai.configure(api_key=Config.BENCHMARK_API_KEY)
     # A larger request than the target count so each per-metric top-10 has a real
     # pool to rank (cheapest/fastest models differ from the smartest ones).
-    prompt = PROMPT.format(n=max(Config.BENCHMARK_TOP_N * 3, 25))
+    n_requested = max(Config.BENCHMARK_TOP_N * 3, 25)
+    prompt = PROMPT.format(n=n_requested)
+    logger.info(
+        "benchmark: calling model=%s grounding=%s requesting=%d models (prompt=%d chars)",
+        Config.BENCHMARK_MODEL,
+        "on" if Config.BENCHMARK_USE_GROUNDING else "off",
+        n_requested,
+        len(prompt),
+    )
 
     # Grounding tool names differ across google-generativeai versions; try the
     # known spellings, then fall back to an ungrounded call so a version mismatch
@@ -63,26 +71,56 @@ def _generate_raw() -> str | None:
 
     last_exc = None
     for tool in tool_variants:
+        label = tool if tool else "ungrounded"
         try:
+            logger.info("benchmark: attempt via %s …", label)
             model = (
                 genai.GenerativeModel(Config.BENCHMARK_MODEL, tools=tool)
                 if tool
                 else genai.GenerativeModel(Config.BENCHMARK_MODEL)
             )
             response = model.generate_content(prompt)
+            _log_usage(label, response)
             if tool is None and Config.BENCHMARK_USE_GROUNDING:
                 logger.warning(
                     "benchmark: grounding unavailable for %s — using ungrounded "
                     "output (numbers may be stale)",
                     Config.BENCHMARK_MODEL,
                 )
-            return response.text
+            text = response.text
+            logger.info(
+                "benchmark: %s returned %d chars of text", label, len(text or "")
+            )
+            return text
         except Exception as exc:  # try the next variant
             last_exc = exc
+            logger.warning("benchmark: attempt via %s failed: %s", label, exc)
             continue
 
-    logger.exception("benchmark generation failed", exc_info=last_exc)
+    logger.error("benchmark generation failed — all attempts exhausted", exc_info=last_exc)
     return None
+
+
+def _log_usage(label: str, response) -> None:
+    """Log token usage from a Gemini response. Best-effort: the usage field's
+    shape varies across google-generativeai versions, so never let it raise."""
+    try:
+        um = getattr(response, "usage_metadata", None)
+        if um is None:
+            logger.info("benchmark: %s — no token usage reported", label)
+            return
+        prompt_tok = getattr(um, "prompt_token_count", None)
+        out_tok = getattr(um, "candidates_token_count", None)
+        total_tok = getattr(um, "total_token_count", None)
+        logger.info(
+            "benchmark: %s token usage — prompt=%s output=%s total=%s",
+            label,
+            prompt_tok,
+            out_tok,
+            total_tok,
+        )
+    except Exception:  # logging must never break generation
+        logger.debug("benchmark: could not read token usage", exc_info=True)
 
 
 def _parse(text: str) -> list[dict]:
@@ -130,17 +168,30 @@ def fetch_and_store(session) -> int:
     left untouched unless a fresh set parses cleanly)."""
     raw = _generate_raw()
     if not raw:
+        logger.warning("benchmark: generation returned no text — keeping existing rows")
         return 0
 
     try:
         rows = _parse(raw)
     except Exception:
-        logger.exception("benchmark: could not parse model output")
+        # Log a snippet of what we got so a bad/non-JSON response is diagnosable.
+        logger.exception(
+            "benchmark: could not parse model output; first 500 chars: %r",
+            raw[:500],
+        )
         return 0
 
     if not rows:
-        logger.warning("benchmark: model returned no usable rows")
+        logger.warning(
+            "benchmark: model returned no usable rows; first 500 chars: %r", raw[:500]
+        )
         return 0
+
+    logger.info("benchmark: parsed %d models from response", len(rows))
+    preview = ", ".join(
+        f"{r['model_name']} (I={r['intelligence']})" for r in rows[:3]
+    )
+    logger.info("benchmark: sample — %s", preview)
 
     note = "{model}{grounded}, {date}".format(
         model=Config.BENCHMARK_MODEL,
