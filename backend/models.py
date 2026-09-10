@@ -92,6 +92,11 @@ class ModelRelease(Base):
     knowledge_cutoff = Column(String(50))
     reference_url = Column(Text)
 
+    # Independent quality score from the Artificial Analysis API (0-100 composite
+    # intelligence index), matched onto the catalog by model name. NULL when AA is
+    # disabled or the model isn't ranked by AA.
+    intelligence_index = Column(Float)
+
     company = relationship("Company", back_populates="model_releases")
 
 
@@ -137,7 +142,13 @@ class BenchmarkScore(Base):
     intelligence = Column(Float)  # composite intelligence index, 0-100 (higher better)
     speed = Column(Float)  # median output tokens/sec (higher better)
     cost = Column(Float)  # USD for a standard task (lower better)
-    source_note = Column(Text)  # e.g. "gemini-2.5-pro, web-grounded, 2026-09-09"
+    # Per-category indices, 0-100 (higher better). Populated when the scoreboard
+    # is sourced from the Artificial Analysis API; NULL for the grounded-LLM
+    # fallback source, which only produces the composite intelligence score.
+    coding = Column(Float)  # coding/software-engineering index
+    math = Column(Float)  # math/quantitative-reasoning index
+    agentic = Column(Float)  # agentic / tool-use index
+    source_note = Column(Text)  # e.g. "Artificial Analysis, 2026-09-10"
     generated_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 

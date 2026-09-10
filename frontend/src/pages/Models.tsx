@@ -42,10 +42,16 @@ function isRecent(iso: string | null): boolean {
 
 function ModelCard({ model }: { model: ModelRelease }) {
   const context = formatContext(model.context_length);
+  const iq = model.intelligence_index;
   return (
     <div className="model-card">
       <div className="model-card__top">
         <span className="model-card__name">{model.model_name}</span>
+        {iq != null && (
+          <span className="model-card__iq" title="Artificial Analysis Intelligence Index (0-100)">
+            ★ {Math.round(iq)}
+          </span>
+        )}
         {model.is_flagship && <span className="chip chip--latest">Latest</span>}
         {!model.is_flagship && isRecent(model.release_date) && <span className="chip chip--new">New</span>}
       </div>
@@ -137,6 +143,17 @@ export default function Models() {
     [releases],
   );
 
+  // Highest-rated models across every lab, by the Artificial Analysis
+  // Intelligence Index. Empty (and the strip hidden) when AA data isn't present.
+  const topRated = useMemo(
+    () =>
+      releases
+        .filter((r) => r.intelligence_index != null)
+        .sort((a, b) => (b.intelligence_index ?? 0) - (a.intelligence_index ?? 0))
+        .slice(0, 8),
+    [releases],
+  );
+
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
     return groups
@@ -160,7 +177,8 @@ export default function Models() {
         <h1>AI Models</h1>
         <p>
           A live catalog of every major lab's models — latest versions, context windows, and
-          pricing. Auto-refreshed from the OpenRouter model registry.
+          pricing, refreshed from the OpenRouter model registry. Intelligence scores (★) are the
+          independent Artificial Analysis Intelligence Index, where available.
         </p>
       </div>
 
@@ -184,6 +202,23 @@ export default function Models() {
               ))}
             </div>
           </section>
+
+          {topRated.length > 0 && (
+            <section className="latest-strip">
+              <h2 className="latest-strip__title">🧠 Smartest models</h2>
+              <div className="latest-strip__row">
+                {topRated.map((m) => (
+                  <div className="latest-chip" key={`iq-${m.id}`}>
+                    <span className="latest-chip__company">{m.company}</span>
+                    <span className="latest-chip__model">{m.model_name}</span>
+                    <span className="latest-chip__date">
+                      ★ {Math.round(m.intelligence_index ?? 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="model-controls">
             <input
