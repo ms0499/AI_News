@@ -19,6 +19,24 @@ class Config:
     # Articles past the cap are still ingested — they just keep their raw summary.
     AI_SUMMARIZE_MAX_PER_RUN = int(os.environ.get("AI_SUMMARIZE_MAX_PER_RUN", 100))
 
+    # --- Benchmark scoreboard generation ---------------------------------------
+    # Uses an LLM to produce the "Model Benchmarks" panel. Deliberately a SEPARATE
+    # model from the per-article summarizer above, so this task can use a stronger
+    # (and ideally web-grounded) model. Off by default.
+    BENCHMARK_ENABLED = os.environ.get("BENCHMARK_ENABLED", "false").lower() == "true"
+    BENCHMARK_MODEL = os.environ.get("BENCHMARK_MODEL", "gemini-2.5-pro")
+    # Its own key so the benchmark model can even be a different provider/project;
+    # falls back to the summarizer's Gemini key when you reuse the same account.
+    BENCHMARK_API_KEY = os.environ.get("BENCHMARK_API_KEY") or GEMINI_API_KEY
+    # Enable Google Search grounding so the model answers from CURRENT standings
+    # instead of stale training data. Strongly recommended — without it the scores
+    # are the model's guess and will be out of date.
+    BENCHMARK_USE_GROUNDING = (
+        os.environ.get("BENCHMARK_USE_GROUNDING", "true").lower() == "true"
+    )
+    # How many models to rank in the panel.
+    BENCHMARK_TOP_N = int(os.environ.get("BENCHMARK_TOP_N", 10))
+
     NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY")
 
 

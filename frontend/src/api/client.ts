@@ -1,4 +1,5 @@
 import type {
+  BenchmarksResponse,
   CompaniesResponse,
   CompanyDetailResponse,
   FeedResponse,
@@ -59,4 +60,8 @@ export function fetchPioneers(): Promise<PioneersResponse> {
 
 export function fetchLeaderboard(): Promise<LeaderboardResponse> {
   return getJson<LeaderboardResponse>("/api/leaderboard");
+}
+
+export function fetchBenchmarks(): Promise<BenchmarksResponse> {
+  return getJson<BenchmarksResponse>("/api/benchmarks");
 }

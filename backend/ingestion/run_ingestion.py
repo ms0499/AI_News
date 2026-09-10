@@ -22,6 +22,7 @@ from services.dedup import normalize_url  # noqa: E402
 
 from ingestion.classify import MODEL_TO_COMPANY, classify  # noqa: E402
 from ingestion.sources import (  # noqa: E402
+    benchmark_source,
     funding_source,
     hf_leaderboard_source,
     hf_trending_source,
@@ -203,6 +204,14 @@ def run() -> None:
         except Exception:  # separate table, never let this break the main pass
             session.rollback()
             logger.exception("hf_leaderboard refresh failed")
+
+        if Config.BENCHMARK_ENABLED:
+            try:
+                n = benchmark_source.fetch_and_store(session)
+                logger.info("benchmark: wrote %d rows", n)
+            except Exception:  # separate table, never let this break the main pass
+                session.rollback()
+                logger.exception("benchmark refresh failed")
     finally:
         session.close()
 

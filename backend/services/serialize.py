@@ -73,6 +73,17 @@ def pioneer_to_dict(pioneer) -> dict:
     }
 
 
+def benchmark_score_to_dict(score) -> dict:
+    return {
+        "id": score.id,
+        "model_name": score.model_name,
+        "company": score.company,
+        "intelligence": score.intelligence,
+        "speed": score.speed,
+        "cost": score.cost,
+    }
+
+
 def leaderboard_entry_to_dict(entry) -> dict:
     return {
         "id": entry.id,

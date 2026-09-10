@@ -101,3 +101,21 @@ export interface LeaderboardResponse {
   source: string;
   entries: LeaderboardEntry[];
 }
+
+export interface BenchmarkScore {
+  id: number;
+  model_name: string;
+  company: string | null;
+  intelligence: number | null;
+  speed: number | null;
+  cost: number | null;
+}
+
+export interface BenchmarksResponse {
+  enabled: boolean;
+  generated_at: string | null;
+  source_note: string | null;
+  intelligence: BenchmarkScore[];
+  speed: BenchmarkScore[];
+  cost: BenchmarkScore[];
+}

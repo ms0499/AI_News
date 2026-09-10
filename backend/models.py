@@ -122,6 +122,25 @@ class LeaderboardEntry(Base):
     fetched_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
+class BenchmarkScore(Base):
+    """One row per model, holding all three benchmark dimensions the panel
+    ranks by. Regenerated wholesale each ingestion run (delete + insert) by
+    ingestion/sources/benchmark_source.py, so it always reflects the latest
+    generation rather than piling up history.
+    """
+
+    __tablename__ = "benchmark_scores"
+
+    id = Column(Integer, primary_key=True)
+    model_name = Column(String(300), nullable=False)
+    company = Column(String(200))
+    intelligence = Column(Float)  # composite intelligence index, 0-100 (higher better)
+    speed = Column(Float)  # median output tokens/sec (higher better)
+    cost = Column(Float)  # USD for a standard task (lower better)
+    source_note = Column(Text)  # e.g. "gemini-2.5-pro, web-grounded, 2026-09-09"
+    generated_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
 class IngestionRun(Base):
     __tablename__ = "ingestion_runs"
 
