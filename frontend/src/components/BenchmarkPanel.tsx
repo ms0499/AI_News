@@ -6,7 +6,7 @@ import "./BenchmarkPanel.css";
 type Metric = "intelligence" | "speed" | "cost";
 
 const TABS: { key: Metric; label: string; icon: string; hint: string }[] = [
-  { key: "intelligence", label: "Intelligence", icon: "🧠", hint: "Composite index — higher is smarter" },
+  { key: "intelligence", label: "Intelligence", icon: "💡", hint: "Composite index — higher is smarter" },
   { key: "speed", label: "Speed", icon: "⚡", hint: "Output tokens/sec — higher is faster" },
   { key: "cost", label: "Cost / task", icon: "💰", hint: "USD per standard task — lower is cheaper" },
 ];
