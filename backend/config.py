@@ -67,23 +67,6 @@ class Config:
 
     NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY")
 
-    # --- Artificial Analysis API ------------------------------------------------
-    # Real, independently-measured benchmark data (intelligence / coding / math /
-    # agentic indices, speed, latency, pricing) for the frontier models. When a
-    # key is set this becomes the PREFERRED source for the "Model Benchmarks"
-    # panel (replacing the grounded-LLM guess above) and also enriches the Models
-    # page with per-model intelligence scores. Off by default — everything
-    # degrades gracefully to the existing sources when no key is configured.
-    # Docs: https://artificialanalysis.ai/data-api/docs
-    AA_ENABLED = os.environ.get("AA_ENABLED", "true").lower() == "true"
-    AA_API_KEY = os.environ.get("AA_API_KEY")
-    AA_BASE_URL = os.environ.get(
-        "AA_BASE_URL", "https://artificialanalysis.ai/api/v2"
-    )
-    AA_REQUEST_TIMEOUT = float(os.environ.get("AA_REQUEST_TIMEOUT", 30))
-    # How many models to keep per category leaderboard in the panel.
-    AA_TOP_N = int(os.environ.get("AA_TOP_N", 10))
-
 
 if not Config.DB_URI:
     raise RuntimeError(

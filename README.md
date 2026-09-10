@@ -140,14 +140,15 @@ listening on `127.0.0.1:6001` on the NAS (`curl localhost:6001/api/health`).
   closed models (it will never show GPT/Gemini/Claude). Treat it as a secondary "what's trending
   in the open-weight community" view; the flagship badge on the Models page (curated in
   `backend/data/curated_models.py`) is the answer to "what's the best model right now."
-- **Artificial Analysis**: optional; set `AA_API_KEY` in `.env` (get one at
-  https://artificialanalysis.ai/data-api) to power the "Model Benchmarks" panel with real,
-  independently-measured data instead of the grounded-LLM guess. When set, it becomes the
-  preferred benchmark source — the panel gains **Coding / Math / Agentic** category leaderboards
-  (alongside Intelligence / Speed / Cost), and the Models page shows each model's Artificial
-  Analysis Intelligence Index (★). The scoreboard + catalog scores refresh from the ~daily
-  `python -m ingestion.run_benchmarks` job; without a key the site falls back to the existing
-  LLM benchmark source and the OpenRouter catalog, unchanged.
+- **Artificial Analysis**: optional; set `ARTIFICIAL_ANALYSIS_API_KEY` in `.env` (free tier is
+  1,000 requests/day; get one at https://artificialanalysis.ai/insights) to power the "Model
+  Benchmarks" panel with real, independently-measured data instead of the grounded-LLM guess.
+  It's the preferred benchmark source — the panel gains **Coding / Math / Agentic** category
+  leaderboards (alongside Intelligence / Speed / Cost), and the Models page shows each model's
+  Artificial Analysis Intelligence Index (★). Both refresh from the ~daily
+  `python -m ingestion.run_benchmarks` job (which also needs `BENCHMARK_ENABLED=true`); without a
+  key it falls back to the LLM benchmark generator, and the category tabs / catalog scores simply
+  don't appear.
 - **NewsAPI**: optional; set `NEWSAPI_KEY` in `.env` to enable it. Free tier is rate-limited.
 - **AI summarization/tagging**: optional; set `GEMINI_API_KEY` in `.env` to enable it. Without
   it, articles fall back to rule-based keyword tagging (`ingestion/classify.py`) and the raw

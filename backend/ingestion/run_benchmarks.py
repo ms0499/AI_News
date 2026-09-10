@@ -25,7 +25,7 @@ from config import Config  # noqa: E402
 from models import BenchmarkScore  # noqa: E402
 from services.db import get_session, init_db  # noqa: E402
 
-from ingestion.sources import artificial_analysis, benchmark_source  # noqa: E402
+from ingestion.sources import benchmark_source  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -71,12 +71,7 @@ def run(force: bool = False) -> None:
                 )
                 return
 
-        source = "Artificial Analysis" if use_aa else "grounded LLM"
-        logger.info("benchmark: refreshing scoreboard via %s", source)
-        if use_aa:
-            n = artificial_analysis.fetch_and_store(session)
-        else:
-            n = benchmark_source.fetch_and_store(session)
+        n = benchmark_source.fetch_and_store(session)
         if n:
             logger.info("benchmark: wrote %d rows", n)
         else:
