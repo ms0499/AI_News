@@ -22,7 +22,6 @@ from services.dedup import normalize_url  # noqa: E402
 
 from ingestion.classify import MODEL_TO_COMPANY, classify  # noqa: E402
 from ingestion.sources import (  # noqa: E402
-    benchmark_source,
     funding_source,
     hf_leaderboard_source,
     hf_trending_source,
@@ -205,13 +204,10 @@ def run() -> None:
             session.rollback()
             logger.exception("hf_leaderboard refresh failed")
 
-        if Config.BENCHMARK_ENABLED:
-            try:
-                n = benchmark_source.fetch_and_store(session)
-                logger.info("benchmark: wrote %d rows", n)
-            except Exception:  # separate table, never let this break the main pass
-                session.rollback()
-                logger.exception("benchmark refresh failed")
+        # NOTE: the Model Benchmarks scoreboard is deliberately NOT refreshed here.
+        # It uses a grounded LLM whose standings barely move day-to-day, so it runs
+        # from its own entrypoint (ingestion.run_benchmarks) on a ~daily schedule
+        # instead of every hourly ingestion pass — see run_benchmarks.py.
     finally:
         session.close()
 

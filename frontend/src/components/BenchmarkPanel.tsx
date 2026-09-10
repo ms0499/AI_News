@@ -5,13 +5,11 @@ import "./BenchmarkPanel.css";
 
 type Metric = "intelligence" | "speed" | "cost";
 
-const TABS: { key: Metric; label: string; icon: string; hint: string }[] = [
-  { key: "intelligence", label: "Intelligence", icon: "💡", hint: "Composite index — higher is smarter" },
-  { key: "speed", label: "Speed", icon: "⚡", hint: "Output tokens/sec — higher is faster" },
-  { key: "cost", label: "Cost / task", icon: "💰", hint: "USD per standard task — lower is cheaper" },
+const TABS: { key: Metric; label: string; hint: string }[] = [
+  { key: "intelligence", label: "Intelligence", hint: "Composite index — higher is smarter" },
+  { key: "speed", label: "Speed", hint: "Output tokens/sec — higher is faster" },
+  { key: "cost", label: "Cost / task", hint: "USD per standard task — lower is cheaper" },
 ];
-
-const RANK_MEDAL = ["🥇", "🥈", "🥉"];
 
 function metricValue(s: BenchmarkScore, m: Metric): number | null {
   return s[m];
@@ -71,7 +69,6 @@ export default function BenchmarkPanel() {
             className={`benchmark-tab${t.key === tab ? " is-active" : ""}`}
             onClick={() => setTab(t.key)}
           >
-            <span className="benchmark-tab__icon">{t.icon}</span>
             {t.label}
           </button>
         ))}
@@ -98,7 +95,7 @@ export default function BenchmarkPanel() {
             return (
               <li className="benchmark-row" key={`${tab}-${row.id}`} data-rank={i + 1}>
                 <div className="benchmark-row__top">
-                  <span className="benchmark-row__rank">{RANK_MEDAL[i] ?? `#${i + 1}`}</span>
+                  <span className="benchmark-row__rank">{i + 1}</span>
                   <span className="benchmark-row__name">
                     {row.model_name}
                     {row.company && <span className="benchmark-row__company">{row.company}</span>}

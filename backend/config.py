@@ -36,6 +36,14 @@ class Config:
     )
     # How many models to rank in the panel.
     BENCHMARK_TOP_N = int(os.environ.get("BENCHMARK_TOP_N", 10))
+    # Minimum hours between benchmark regenerations. The benchmark runs from its
+    # own entrypoint (run_benchmarks.py), scheduled roughly once a day; this guard
+    # makes that entrypoint a no-op if the table was refreshed more recently, so a
+    # misfiring or too-frequent cron can't burn grounded API requests. Pass --force
+    # to override. Benchmark standings barely move day-to-day, so ~20h is plenty.
+    BENCHMARK_MIN_INTERVAL_HOURS = float(
+        os.environ.get("BENCHMARK_MIN_INTERVAL_HOURS", 20)
+    )
 
     NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY")
 
