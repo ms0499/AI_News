@@ -1,24 +1,36 @@
-"""Generates the "Model Benchmarks" scoreboard (intelligence / speed / cost)
-using a configurable LLM — see BENCHMARK_MODEL in config.py.
+"""Populates the "Model Benchmarks" scoreboard (intelligence / speed / cost).
 
-This deliberately uses a SEPARATE model from the per-article summarizer so it
-can be a stronger, web-grounded model. Accuracy hinges on grounding: with
-BENCHMARK_USE_GROUNDING the model answers from live Google Search results
-(current standings); without it, the numbers are the model's stale guess.
+Primary source is the Artificial Analysis Data API — real, measured data for
+each model's intelligence index, output speed, and API pricing. No LLM is
+involved, so the numbers can't hallucinate or drift the way a model's
+recollection can, and it costs nothing beyond a single HTTP request (free tier:
+1,000 requests/day). This is the same source the LLM prompt below already cited
+("Artificial Analysis Intelligence Index"), so we now read it directly.
+
+When no Artificial Analysis key is configured, it falls back to the older
+approach: asking a configurable LLM (BENCHMARK_MODEL, optionally web-grounded)
+to produce the numbers.
 
 Best-effort, like ai_summarize: any failure leaves the previous rows in place
-(we only replace them once a fresh generation parses cleanly), so a bad run
-never blanks the panel.
+(we only replace them once a fresh set parses cleanly), so a bad run never
+blanks the panel.
 """
 
 import json
 import logging
 from datetime import datetime, timezone
 
+import requests
+
 from config import Config
 from models import BenchmarkScore
 
 logger = logging.getLogger(__name__)
+
+# Cost is normalized to one "standard task" so the cheapest/most-expensive
+# ranking is comparable across models regardless of their per-token prices.
+STANDARD_TASK_INPUT_TOKENS = 10_000
+STANDARD_TASK_OUTPUT_TOKENS = 2_000
 
 PROMPT = """You are compiling a current AI model benchmark scoreboard for a \
 news dashboard. Using up-to-date public data, list the {n} most notable large \
@@ -46,9 +58,10 @@ def _generate_raw() -> str | None:
     if not (Config.BENCHMARK_ENABLED and Config.BENCHMARK_API_KEY):
         return None
 
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=Config.BENCHMARK_API_KEY)
+    client = genai.Client(api_key=Config.BENCHMARK_API_KEY)
     # A larger request than the target count so each per-metric top-10 has a real
     # pool to rank (cheapest/fastest models differ from the smartest ones).
     n_requested = max(Config.BENCHMARK_TOP_N * 3, 25)
@@ -61,30 +74,33 @@ def _generate_raw() -> str | None:
         len(prompt),
     )
 
-    # Grounding tool names differ across google-generativeai versions; try the
-    # known spellings, then fall back to an ungrounded call so a version mismatch
-    # degrades to "stale but working" instead of failing outright.
+    # Gemini 2.0+/3.x web grounding is the GoogleSearch tool (the older
+    # google_search_retrieval / dynamic-retrieval tool is rejected by these
+    # models). Try grounded first, then fall back to an ungrounded call so a
+    # failure degrades to "stale but working" instead of failing outright.
+    timeout_ms = int(Config.BENCHMARK_REQUEST_TIMEOUT * 1000)
     tool_variants = []
     if Config.BENCHMARK_USE_GROUNDING:
-        tool_variants = ["google_search", "google_search_retrieval"]
-    tool_variants.append(None)  # ungrounded fallback, always last
+        tool_variants.append(
+            ("google_search", [types.Tool(google_search=types.GoogleSearch())])
+        )
+    tool_variants.append(("ungrounded", None))  # fallback, always last
 
     last_exc = None
-    for tool in tool_variants:
-        label = tool if tool else "ungrounded"
+    for label, tools in tool_variants:
         try:
             logger.info("benchmark: attempt via %s …", label)
-            model = (
-                genai.GenerativeModel(Config.BENCHMARK_MODEL, tools=tool)
-                if tool
-                else genai.GenerativeModel(Config.BENCHMARK_MODEL)
+            config = types.GenerateContentConfig(
+                tools=tools,
+                http_options=types.HttpOptions(timeout=timeout_ms),
             )
-            response = model.generate_content(
-                prompt,
-                request_options={"timeout": Config.BENCHMARK_REQUEST_TIMEOUT},
+            response = client.models.generate_content(
+                model=Config.BENCHMARK_MODEL,
+                contents=prompt,
+                config=config,
             )
             _log_usage(label, response)
-            if tool is None and Config.BENCHMARK_USE_GROUNDING:
+            if tools is None and Config.BENCHMARK_USE_GROUNDING:
                 logger.warning(
                     "benchmark: grounding unavailable for %s — using ungrounded "
                     "output (numbers may be stale)",
@@ -106,7 +122,7 @@ def _generate_raw() -> str | None:
 
 def _log_usage(label: str, response) -> None:
     """Log token usage from a Gemini response. Best-effort: the usage field's
-    shape varies across google-generativeai versions, so never let it raise."""
+    shape varies across SDK versions, so never let it raise."""
     try:
         um = getattr(response, "usage_metadata", None)
         if um is None:
@@ -165,42 +181,178 @@ def _num(value):
         return None
 
 
-def fetch_and_store(session) -> int:
-    """Generate a fresh scoreboard and atomically replace the table. Returns the
-    number of rows written (0 when disabled or on any failure — existing rows are
-    left untouched unless a fresh set parses cleanly)."""
+# --- Artificial Analysis Data API (primary source) ---------------------------
+
+
+def _dig(obj, *paths):
+    """Return the first non-None value found at any of the given dotted key
+    paths, tolerating the API nesting its fields slightly differently across
+    versions (e.g. "evaluations.artificial_analysis_intelligence_index")."""
+    for path in paths:
+        cur = obj
+        for key in path.split("."):
+            if not isinstance(cur, dict):
+                cur = None
+                break
+            cur = cur.get(key)
+        if cur is not None:
+            return cur
+    return None
+
+
+def _standard_task_cost(item) -> float | None:
+    """USD to run one standard task (~10k input + ~2k output tokens) at the
+    model's list price. Prices in the API are per 1M tokens."""
+    in_price = _num(
+        _dig(item, "pricing.price_1m_input_tokens", "price.price_1m_input_tokens")
+    )
+    out_price = _num(
+        _dig(item, "pricing.price_1m_output_tokens", "price.price_1m_output_tokens")
+    )
+    if in_price is None and out_price is None:
+        # Fall back to a blended per-1M price if the split isn't available.
+        blended = _num(
+            _dig(item, "pricing.price_1m_blended_3_to_1", "price.price_1m_blended_3_to_1")
+        )
+        if blended is None:
+            return None
+        total_tokens = STANDARD_TASK_INPUT_TOKENS + STANDARD_TASK_OUTPUT_TOKENS
+        return round(blended * total_tokens / 1_000_000, 4)
+    return round(
+        (in_price or 0.0) * STANDARD_TASK_INPUT_TOKENS / 1_000_000
+        + (out_price or 0.0) * STANDARD_TASK_OUTPUT_TOKENS / 1_000_000,
+        4,
+    )
+
+
+def _parse_artificial_analysis(payload) -> list[dict]:
+    data = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(data, list):
+        return []
+    rows = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or item.get("slug") or "").strip()
+        if not name:
+            continue
+        company = _dig(item, "model_creator.name", "model_creator.slug")
+        intelligence = _num(
+            _dig(
+                item,
+                "evaluations.artificial_analysis_intelligence_index",
+                "artificial_analysis_intelligence_index",
+            )
+        )
+        speed = _num(
+            _dig(
+                item,
+                "median_output_tokens_per_second",
+                "evaluations.median_output_tokens_per_second",
+                "performance.median_output_tokens_per_second",
+            )
+        )
+        cost = _standard_task_cost(item)
+        # Skip rows with nothing to rank on — an entry with no metric at all is
+        # noise in every leaderboard.
+        if intelligence is None and speed is None and cost is None:
+            continue
+        rows.append(
+            {
+                "model_name": name,
+                "company": (str(company).strip() if company else None),
+                "intelligence": intelligence,
+                "speed": speed,
+                "cost": cost,
+            }
+        )
+    return rows
+
+
+def _fetch_from_artificial_analysis() -> list[dict] | None:
+    """Pull the model catalog from the Artificial Analysis Data API and map it
+    to benchmark rows. Returns None if no key is configured or the request fails
+    (so the caller can fall back to the LLM generator)."""
+    if not Config.ARTIFICIAL_ANALYSIS_API_KEY:
+        return None
+
+    logger.info(
+        "benchmark: fetching from Artificial Analysis Data API (%s)",
+        Config.ARTIFICIAL_ANALYSIS_API_URL,
+    )
+    try:
+        resp = requests.get(
+            Config.ARTIFICIAL_ANALYSIS_API_URL,
+            headers={"x-api-key": Config.ARTIFICIAL_ANALYSIS_API_KEY},
+            timeout=Config.BENCHMARK_REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+    except Exception as exc:
+        logger.warning("benchmark: Artificial Analysis request failed: %s", exc)
+        return None
+
+    try:
+        rows = _parse_artificial_analysis(payload)
+    except Exception:
+        logger.exception("benchmark: could not parse Artificial Analysis response")
+        return None
+
+    logger.info("benchmark: Artificial Analysis returned %d usable models", len(rows))
+    return rows
+
+
+def _generate_from_llm() -> list[dict] | None:
+    """Fallback: ask the configured LLM to produce the scoreboard. Returns None
+    if generation returned nothing or couldn't be parsed."""
     raw = _generate_raw()
     if not raw:
-        logger.warning("benchmark: generation returned no text — keeping existing rows")
-        return 0
-
+        logger.warning("benchmark: LLM generation returned no text")
+        return None
     try:
         rows = _parse(raw)
     except Exception:
-        # Log a snippet of what we got so a bad/non-JSON response is diagnosable.
         logger.exception(
-            "benchmark: could not parse model output; first 500 chars: %r",
-            raw[:500],
+            "benchmark: could not parse LLM output; first 500 chars: %r", raw[:500]
         )
-        return 0
-
+        return None
     if not rows:
         logger.warning(
-            "benchmark: model returned no usable rows; first 500 chars: %r", raw[:500]
+            "benchmark: LLM returned no usable rows; first 500 chars: %r", raw[:500]
         )
+    return rows or None
+
+
+def fetch_and_store(session) -> int:
+    """Refresh the scoreboard and atomically replace the table. Prefers the
+    Artificial Analysis Data API; falls back to the LLM generator when no AA key
+    is set or the API is unavailable. Returns the number of rows written (0 when
+    disabled or on any failure — existing rows are left untouched unless a fresh
+    set parses cleanly)."""
+    date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    rows = _fetch_from_artificial_analysis()
+    if rows:
+        note = f"Artificial Analysis Data API, {date}"
+    else:
+        if Config.ARTIFICIAL_ANALYSIS_API_KEY:
+            logger.warning(
+                "benchmark: Artificial Analysis unavailable — falling back to LLM"
+            )
+        rows = _generate_from_llm()
+        note = "{model}{grounded}, {date}".format(
+            model=Config.BENCHMARK_MODEL,
+            grounded=" · web-grounded" if Config.BENCHMARK_USE_GROUNDING else "",
+            date=date,
+        )
+
+    if not rows:
+        logger.warning("benchmark: no rows produced — keeping existing rows")
         return 0
 
-    logger.info("benchmark: parsed %d models from response", len(rows))
-    preview = ", ".join(
-        f"{r['model_name']} (I={r['intelligence']})" for r in rows[:3]
-    )
+    logger.info("benchmark: writing %d models (source: %s)", len(rows), note)
+    preview = ", ".join(f"{r['model_name']} (I={r['intelligence']})" for r in rows[:3])
     logger.info("benchmark: sample — %s", preview)
-
-    note = "{model}{grounded}, {date}".format(
-        model=Config.BENCHMARK_MODEL,
-        grounded=" · web-grounded" if Config.BENCHMARK_USE_GROUNDING else "",
-        date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-    )
 
     session.query(BenchmarkScore).delete()
     for r in rows:

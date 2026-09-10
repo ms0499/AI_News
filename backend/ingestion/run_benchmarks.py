@@ -46,18 +46,15 @@ def _hours_since_last_refresh(session) -> float | None:
 
 
 def run(force: bool = False) -> None:
-    # Prefer the Artificial Analysis API (real, independent numbers) whenever a
-    # key is configured; otherwise fall back to the grounded-LLM generator.
-    use_aa = bool(Config.AA_ENABLED and Config.AA_API_KEY)
-    if not use_aa:
-        if not Config.BENCHMARK_ENABLED:
-            logger.info(
-                "benchmark: no AA_API_KEY and BENCHMARK_ENABLED is false — nothing to do"
-            )
-            return
-        if not Config.BENCHMARK_API_KEY:
-            logger.warning("benchmark: no AA key and no LLM key configured — skipping")
-            return
+    if not Config.BENCHMARK_ENABLED:
+        logger.info("benchmark: BENCHMARK_ENABLED is false — nothing to do")
+        return
+    if not (Config.ARTIFICIAL_ANALYSIS_API_KEY or Config.BENCHMARK_API_KEY):
+        logger.warning(
+            "benchmark: no source configured — set ARTIFICIAL_ANALYSIS_API_KEY "
+            "(preferred) or a BENCHMARK_API_KEY for the LLM fallback; skipping"
+        )
+        return
 
     init_db()
     session = get_session()
