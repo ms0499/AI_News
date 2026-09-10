@@ -46,9 +46,10 @@ def _generate_raw() -> str | None:
     if not (Config.BENCHMARK_ENABLED and Config.BENCHMARK_API_KEY):
         return None
 
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=Config.BENCHMARK_API_KEY)
+    client = genai.Client(api_key=Config.BENCHMARK_API_KEY)
     # A larger request than the target count so each per-metric top-10 has a real
     # pool to rank (cheapest/fastest models differ from the smartest ones).
     n_requested = max(Config.BENCHMARK_TOP_N * 3, 25)
@@ -61,30 +62,33 @@ def _generate_raw() -> str | None:
         len(prompt),
     )
 
-    # Grounding tool names differ across google-generativeai versions; try the
-    # known spellings, then fall back to an ungrounded call so a version mismatch
-    # degrades to "stale but working" instead of failing outright.
+    # Gemini 2.0+/3.x web grounding is the GoogleSearch tool (the older
+    # google_search_retrieval / dynamic-retrieval tool is rejected by these
+    # models). Try grounded first, then fall back to an ungrounded call so a
+    # failure degrades to "stale but working" instead of failing outright.
+    timeout_ms = int(Config.BENCHMARK_REQUEST_TIMEOUT * 1000)
     tool_variants = []
     if Config.BENCHMARK_USE_GROUNDING:
-        tool_variants = ["google_search", "google_search_retrieval"]
-    tool_variants.append(None)  # ungrounded fallback, always last
+        tool_variants.append(
+            ("google_search", [types.Tool(google_search=types.GoogleSearch())])
+        )
+    tool_variants.append(("ungrounded", None))  # fallback, always last
 
     last_exc = None
-    for tool in tool_variants:
-        label = tool if tool else "ungrounded"
+    for label, tools in tool_variants:
         try:
             logger.info("benchmark: attempt via %s …", label)
-            model = (
-                genai.GenerativeModel(Config.BENCHMARK_MODEL, tools=tool)
-                if tool
-                else genai.GenerativeModel(Config.BENCHMARK_MODEL)
+            config = types.GenerateContentConfig(
+                tools=tools,
+                http_options=types.HttpOptions(timeout=timeout_ms),
             )
-            response = model.generate_content(
-                prompt,
-                request_options={"timeout": Config.BENCHMARK_REQUEST_TIMEOUT},
+            response = client.models.generate_content(
+                model=Config.BENCHMARK_MODEL,
+                contents=prompt,
+                config=config,
             )
             _log_usage(label, response)
-            if tool is None and Config.BENCHMARK_USE_GROUNDING:
+            if tools is None and Config.BENCHMARK_USE_GROUNDING:
                 logger.warning(
                     "benchmark: grounding unavailable for %s — using ungrounded "
                     "output (numbers may be stale)",
@@ -106,7 +110,7 @@ def _generate_raw() -> str | None:
 
 def _log_usage(label: str, response) -> None:
     """Log token usage from a Gemini response. Best-effort: the usage field's
-    shape varies across google-generativeai versions, so never let it raise."""
+    shape varies across SDK versions, so never let it raise."""
     try:
         um = getattr(response, "usage_metadata", None)
         if um is None:

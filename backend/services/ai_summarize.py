@@ -13,7 +13,7 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
-_model = None
+_client = None
 _last_call = 0.0  # monotonic timestamp of the last Gemini call, for rate spacing
 
 
@@ -31,17 +31,16 @@ def _throttle() -> None:
     _last_call = time.monotonic()
 
 
-def _get_model():
-    global _model
-    if _model is not None:
-        return _model
+def _get_client():
+    global _client
+    if _client is not None:
+        return _client
     if not (Config.AI_SUMMARIZE_ENABLED and Config.GEMINI_API_KEY):
         return None
-    import google.generativeai as genai
+    from google import genai
 
-    genai.configure(api_key=Config.GEMINI_API_KEY)
-    _model = genai.GenerativeModel(Config.GEMINI_MODEL)
-    return _model
+    _client = genai.Client(api_key=Config.GEMINI_API_KEY)
+    return _client
 
 
 PROMPT = """You summarize AI-industry news for a dashboard. Given the title and \
@@ -58,13 +57,14 @@ Respond with ONLY the JSON object, no markdown fences."""
 
 
 def summarize_and_tag(title: str, raw_summary: str) -> dict | None:
-    model = _get_model()
-    if model is None:
+    client = _get_client()
+    if client is None:
         return None
     try:
         _throttle()
-        response = model.generate_content(
-            PROMPT.format(title=title, raw_summary=raw_summary or "")
+        response = client.models.generate_content(
+            model=Config.GEMINI_MODEL,
+            contents=PROMPT.format(title=title, raw_summary=raw_summary or ""),
         )
         text = response.text.strip()
         if text.startswith("```"):
