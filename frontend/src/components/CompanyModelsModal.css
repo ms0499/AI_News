@@ -130,3 +130,30 @@
   color: var(--text-secondary);
   line-height: 1.55;
 }
+
+@media (max-width: 720px) {
+  .model-modal__overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .model-modal {
+    max-width: none;
+    max-height: 92vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .model-modal__header {
+    padding: 18px 18px 14px;
+  }
+
+  .model-modal__body {
+    padding: 8px 18px 18px;
+  }
+
+  .model-modal__title h2 {
+    font-size: 1.1rem;
+  }
+}

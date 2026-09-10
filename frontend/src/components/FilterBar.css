@@ -46,3 +46,33 @@
 .filterbar__active .chip {
   cursor: pointer;
 }
+
+@media (max-width: 720px) {
+  .filterbar {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  /* Horizontal scroll strip keeps section tabs on one tidy row. */
+  .filterbar__sections {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filterbar__sections::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterbar__tab {
+    flex: 0 0 auto;
+    padding: 8px 15px;
+  }
+
+  .filterbar__active {
+    flex-wrap: wrap;
+  }
+}
