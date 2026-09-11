@@ -9,7 +9,7 @@ const TOP_N = 25;
 // One tab per benchmark category. `field` is both the response array key and the
 // BenchmarkScore property the primary column reads. Each tab is ranked server-side
 // by that metric; every tab additionally shows Latency and Context columns.
-type TabKey = "intelligence" | "coding" | "agentic" | "price" | "speed";
+type TabKey = "intelligence" | "coding" | "agentic" | "cost" | "speed";
 
 interface Tab {
   key: TabKey;
@@ -28,11 +28,19 @@ function fmtContext(v: number): string {
 const fmtIndex = (v: number) => String(Math.round(v));
 const fmtLatency = (v: number) => `${v.toFixed(2)}s`;
 
+// Cost/task spans ~$0.0003 to hundreds, so scale the precision to the magnitude
+// rather than rounding sub-cent models to "$0.00".
+function fmtCost(v: number): string {
+  if (v >= 1) return `$${v.toFixed(2)}`;
+  if (v >= 0.01) return `$${v.toFixed(3)}`;
+  return `$${v.toFixed(4)}`;
+}
+
 const TABS: Tab[] = [
   { key: "intelligence", label: "Intelligence", metricLabel: "Intelligence", hint: "Artificial Analysis Intelligence Index", format: fmtIndex },
   { key: "coding", label: "Coding", metricLabel: "Coding", hint: "Coding Index", format: fmtIndex },
   { key: "agentic", label: "Agentic", metricLabel: "Agentic", hint: "Agentic / tool-use index", format: fmtIndex },
-  { key: "price", label: "Price", metricLabel: "Price ($/M)", hint: "Blended price, USD per 1M tokens (3:1)", format: (v) => `$${v.toFixed(2)}` },
+  { key: "cost", label: "Cost", metricLabel: "Cost / task", hint: "USD to run one Artificial Analysis Intelligence Index task (cheapest first)", format: fmtCost },
   { key: "speed", label: "Speed", metricLabel: "Speed (t/s)", hint: "Median output tokens/sec", format: (v) => `${Math.round(v)}` },
 ];
 

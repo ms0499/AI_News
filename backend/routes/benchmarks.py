@@ -1,11 +1,34 @@
+import re
+
 from flask import Blueprint, jsonify, request
 
 from config import Config
-from models import BenchmarkScore
+from models import BenchmarkScore, ModelRelease
 from services.db import get_session
 from services.serialize import benchmark_score_to_dict
 
 bp = Blueprint("benchmarks", __name__)
+
+
+def _norm_name(name: str) -> str:
+    """Loose model-name key for matching benchmark rows to catalog rows. Strips
+    parenthetical qualifiers ('(high)', '(Non-reasoning)') and non-alphanumerics
+    so 'GPT-5.1 (high)' and 'gpt 5 1' collapse to the same key."""
+    n = (name or "").lower()
+    n = re.sub(r"\([^)]*\)", " ", n)
+    return re.sub(r"[^a-z0-9]+", " ", n).strip()
+
+
+def _context_lookup(session) -> dict:
+    """Map normalized model name -> context window from the Models catalog
+    (populated from OpenRouter). The Artificial Analysis *free* endpoint doesn't
+    return a context window, so we borrow it from the catalog at read time,
+    filling the Context column without needing a benchmark re-ingest."""
+    out: dict = {}
+    for r in session.query(ModelRelease).all():
+        if r.context_length:
+            out.setdefault(_norm_name(r.model_name), r.context_length)
+    return out
 
 # Cost ranks every scored model ascending by price, so left unfiltered the
 # cheapest slots go to obscure/niche providers rather than the well-known labs
@@ -22,13 +45,28 @@ def _is_famous(score) -> bool:
     return (score.company or "").strip().lower() in _FAMOUS_COMPANIES
 
 
-def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False):
+def _dump(score, ctx_lookup=None) -> dict:
+    """Serialize one score, backfilling context_length from the catalog lookup
+    when the benchmark row itself has none (AA's free tier omits it)."""
+    d = benchmark_score_to_dict(score)
+    if ctx_lookup is not None and d.get("context_length") is None:
+        d["context_length"] = ctx_lookup.get(_norm_name(score.model_name))
+    return d
+
+
+def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False,
+         ctx_lookup=None, positive=False):
     ranked = [s for s in scores if getattr(s, key) is not None]
+    # For money metrics a stored 0.0 means "no active paid provider / no pricing
+    # data" (see benchmark_source._standard_task_cost), not "free" — drop them so
+    # they don't fraudulently occupy the cheapest slots when ranking ascending.
+    if positive:
+        ranked = [s for s in ranked if getattr(s, key) > 0]
     if famous_only:
         ranked = [s for s in ranked if _is_famous(s)]
     if not balanced:
         ranked.sort(key=lambda s: getattr(s, key), reverse=reverse)
-        return [benchmark_score_to_dict(s) for s in ranked[:limit]]
+        return [_dump(s, ctx_lookup) for s in ranked[:limit]]
 
     # Rank open-weight and closed models separately, then take up to half the
     # limit from each and re-merge — so a flat sort (which closed frontier
@@ -46,7 +84,7 @@ def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False):
     )
     combined = open_ranked[:limit_each] + closed_ranked[:limit_each]
     combined.sort(key=lambda s: getattr(s, key), reverse=reverse)
-    return [benchmark_score_to_dict(s) for s in combined]
+    return [_dump(s, ctx_lookup) for s in combined]
 
 
 @bp.get("/api/benchmarks/table")
@@ -91,7 +129,9 @@ def list_benchmarks():
     the frontend hides the tabs for empty categories. Cost and price are additionally
     restricted to a curated set of well-known labs (see _FAMOUS_COMPANIES) so
     the cheapest slots aren't dominated by obscure niche providers. Every score dict
-    carries latency and context_length so each category tab can show those columns.
+    carries latency and context_length so each category tab can show those columns;
+    context_length is backfilled from the Models catalog (_context_lookup) because
+    the AA free endpoint doesn't return a context window.
 
     Query params: ?limit=N (default 10, total rows per category) and
     ?balanced=1 (default off) to guarantee up to limit/2 open-weight and
@@ -104,27 +144,33 @@ def list_benchmarks():
     session = get_session()
     try:
         scores = session.query(BenchmarkScore).all()
+        ctx_lookup = _context_lookup(session)
         generated_at = max((s.generated_at for s in scores), default=None)
         source_note = scores[0].source_note if scores else None
+
+        def top(key, reverse, famous_only=False, positive=False):
+            return _top(
+                scores, key, reverse=reverse, limit=limit, balanced=balanced,
+                famous_only=famous_only, ctx_lookup=ctx_lookup, positive=positive,
+            )
+
         return jsonify(
             {
                 "enabled": Config.BENCHMARK_ENABLED,
                 "generated_at": generated_at.isoformat() if generated_at else None,
                 "source_note": source_note,
-                "intelligence": _top(scores, "intelligence", reverse=True, limit=limit, balanced=balanced),
-                "coding": _top(scores, "coding", reverse=True, limit=limit, balanced=balanced),
-                "math": _top(scores, "math", reverse=True, limit=limit, balanced=balanced),
-                "agentic": _top(scores, "agentic", reverse=True, limit=limit, balanced=balanced),
-                "speed": _top(scores, "speed", reverse=True, limit=limit, balanced=balanced),
-                "cost": _top(
-                    scores, "cost", reverse=False, limit=limit, balanced=balanced, famous_only=True
-                ),
-                # Blended $/M price (AA's "Price" column), cheapest first. Like the
-                # cost tab it's restricted to well-known labs (see _FAMOUS_COMPANIES)
+                "intelligence": top("intelligence", reverse=True),
+                "coding": top("coding", reverse=True),
+                "math": top("math", reverse=True),
+                "agentic": top("agentic", reverse=True),
+                "speed": top("speed", reverse=True),
+                # AA's real per-task cost (accounts for reasoning models' token use),
+                # cheapest first, restricted to well-known labs (_FAMOUS_COMPANIES)
                 # so the cheapest slots aren't dominated by obscure niche providers.
-                "price": _top(
-                    scores, "price", reverse=False, limit=limit, balanced=balanced, famous_only=True
-                ),
+                "cost": top("cost", reverse=False, famous_only=True, positive=True),
+                # Blended $/M price (AA's "Price" column). Absent on the AA free
+                # tier, so this is typically empty; kept for API back-compat.
+                "price": top("price", reverse=False, famous_only=True, positive=True),
             }
         )
     finally:
