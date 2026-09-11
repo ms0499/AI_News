@@ -255,27 +255,35 @@ def _dig(obj, *paths):
 
 def _standard_task_cost(item) -> float | None:
     """USD to run one standard task (~10k input + ~2k output tokens) at the
-    model's list price. Prices in the API are per 1M tokens."""
+    model's list price. Prices in the API are per 1M tokens.
+
+    The API reports a literal 0 (not a missing field) for models with no
+    active paid provider — mostly deprecated or self-hosted-only entries
+    (e.g. Grok-1, Llama 3.1 405B, old GPT previews). No real API charges
+    $0/token, so an all-zero price means "no pricing data", not "free" —
+    treat it the same as missing so these don't rank as the cheapest models.
+    """
     in_price = _num(
         _dig(item, "pricing.price_1m_input_tokens", "price.price_1m_input_tokens")
     )
     out_price = _num(
         _dig(item, "pricing.price_1m_output_tokens", "price.price_1m_output_tokens")
     )
-    if in_price is None and out_price is None:
+    if (in_price is None and out_price is None) or (not in_price and not out_price):
         # Fall back to a blended per-1M price if the split isn't available.
         blended = _num(
             _dig(item, "pricing.price_1m_blended_3_to_1", "price.price_1m_blended_3_to_1")
         )
-        if blended is None:
+        if not blended:
             return None
         total_tokens = STANDARD_TASK_INPUT_TOKENS + STANDARD_TASK_OUTPUT_TOKENS
         return round(blended * total_tokens / 1_000_000, 4)
-    return round(
+    cost = round(
         (in_price or 0.0) * STANDARD_TASK_INPUT_TOKENS / 1_000_000
         + (out_price or 0.0) * STANDARD_TASK_OUTPUT_TOKENS / 1_000_000,
         4,
     )
+    return cost or None
 
 
 def _parse_artificial_analysis(payload) -> list[dict]:
