@@ -35,6 +35,49 @@ _NORMALIZE_NAME = re.compile(r"[^a-z0-9]+")
 def _match_key(name: str) -> str:
     return _NORMALIZE_NAME.sub(" ", (name or "").lower()).strip()
 
+
+# --- Open-weights vs closed classification ------------------------------------
+# The Artificial Analysis Data API only reports a model's license/open-weights
+# status on its Pro tier ("licensing.is_open_weights"); this project uses the
+# free tier, so that field is absent from every response we actually get. We
+# classify by lab instead, since almost every lab in the AA dataset either
+# ships open weights for everything it releases or nothing at all. A handful of
+# labs straddle the line (Google, Mistral, Meta ship one or two closed/hosted
+# models alongside their open releases) — those are handled by name overrides.
+_OPEN_COMPANIES = {
+    "meta", "meta ai", "mistral", "mistral ai", "deepseek", "alibaba", "qwen",
+    "moonshot ai", "moonshot", "zhipu ai", "zhipu", "z.ai", "01.ai", "01 ai",
+    "minimax", "nvidia", "databricks", "stability ai", "allen institute for ai",
+    "ai2", "ibm", "snowflake", "tii", "technology innovation institute",
+    "microsoft",  # Phi models are open-weight; Microsoft's closed models are OpenAI's
+}
+_CLOSED_COMPANIES = {
+    "openai", "anthropic", "google", "google deepmind", "xai", "amazon",
+    "cohere", "inflection", "reka", "reka ai", "perplexity", "ai21",
+    "ai21 labs", "baidu", "bytedance",
+}
+# Name substrings that override the company-level default above (checked
+# case-insensitively), for labs whose catalog mixes open and closed models.
+_OPEN_NAME_OVERRIDES = ("gemma", "llama", "codestral", "mixtral", "phi-", "phi ")
+_CLOSED_NAME_OVERRIDES = ("mistral large", "mistral medium", "le chat")
+
+
+def _classify_open_weights(company: str | None, model_name: str) -> bool | None:
+    name_lower = (model_name or "").lower()
+    for needle in _CLOSED_NAME_OVERRIDES:
+        if needle in name_lower:
+            return False
+    for needle in _OPEN_NAME_OVERRIDES:
+        if needle in name_lower:
+            return True
+
+    company_key = (company or "").strip().lower()
+    if company_key in _OPEN_COMPANIES:
+        return True
+    if company_key in _CLOSED_COMPANIES:
+        return False
+    return None
+
 # Cost is normalized to one "standard task" so the cheapest/most-expensive
 # ranking is comparable across models regardless of their per-token prices.
 STANDARD_TASK_INPUT_TOKENS = 10_000
@@ -166,13 +209,15 @@ def _parse(text: str) -> list[dict]:
             name = str(item["model"]).strip()
             if not name:
                 continue
+            company = str(item.get("company", "")).strip() or None
             rows.append(
                 {
                     "model_name": name,
-                    "company": (str(item.get("company", "")).strip() or None),
+                    "company": company,
                     "intelligence": _num(item.get("intelligence")),
                     "speed": _num(item.get("speed")),
                     "cost": _num(item.get("cost")),
+                    "is_open_weights": _classify_open_weights(company, name),
                 }
             )
         except Exception:
@@ -284,6 +329,12 @@ def _parse_artificial_analysis(payload) -> list[dict]:
                 "artificial_analysis_agentic_index",
             )
         )
+        company = str(company).strip() if company else None
+        # Real license data (Pro tier only) wins when present; otherwise fall
+        # back to the company/name heuristic below.
+        is_open_weights = _dig(item, "licensing.is_open_weights", "is_open_weights")
+        if not isinstance(is_open_weights, bool):
+            is_open_weights = _classify_open_weights(company, name)
         # Skip rows with nothing to rank on — an entry with no metric at all is
         # noise in every leaderboard.
         if intelligence is None and speed is None and cost is None:
@@ -291,13 +342,14 @@ def _parse_artificial_analysis(payload) -> list[dict]:
         rows.append(
             {
                 "model_name": name,
-                "company": (str(company).strip() if company else None),
+                "company": company,
                 "intelligence": intelligence,
                 "speed": speed,
                 "cost": cost,
                 "coding": coding,
                 "math": math,
                 "agentic": agentic,
+                "is_open_weights": is_open_weights,
             }
         )
     return rows

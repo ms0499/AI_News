@@ -85,6 +85,7 @@ def benchmark_score_to_dict(score) -> dict:
         "coding": score.coding,
         "math": score.math,
         "agentic": score.agentic,
+        "is_open_weights": score.is_open_weights,
     }
 
 

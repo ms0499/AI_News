@@ -11,6 +11,15 @@ const FeedIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const BenchmarksIcon = ({ className }: IconProps) => (
+  <svg className={className} viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
+    <path d="M4 20V4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <rect x="7" y="12" width="3.4" height="8" rx="1" stroke="currentColor" strokeWidth="1.7" />
+    <rect x="12.3" y="7" width="3.4" height="13" rx="1" stroke="currentColor" strokeWidth="1.7" />
+    <rect x="17.6" y="10" width="3.4" height="10" rx="1" stroke="currentColor" strokeWidth="1.7" />
+  </svg>
+);
+
 const ModelsIcon = ({ className }: IconProps) => (
   <svg className={className} viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
     <path
@@ -62,6 +71,7 @@ type NavItem = { to: string; label: string; end?: boolean; icon: (props: IconPro
 
 const LINKS: NavItem[] = [
   { to: "/", label: "Feed", end: true, icon: FeedIcon },
+  { to: "/benchmarks", label: "Benchmarks", icon: BenchmarksIcon },
   { to: "/models", label: "Models", icon: ModelsIcon },
   { to: "/companies", label: "Companies", icon: CompaniesIcon },
   { to: "/pioneers", label: "Pioneers", icon: PioneersIcon },

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from config import Config
 from models import BenchmarkScore
@@ -8,10 +8,29 @@ from services.serialize import benchmark_score_to_dict
 bp = Blueprint("benchmarks", __name__)
 
 
-def _top(scores, key, reverse, limit=10):
+def _top(scores, key, reverse, limit=10, balanced=False):
     ranked = [s for s in scores if getattr(s, key) is not None]
-    ranked.sort(key=lambda s: getattr(s, key), reverse=reverse)
-    return [benchmark_score_to_dict(s) for s in ranked[:limit]]
+    if not balanced:
+        ranked.sort(key=lambda s: getattr(s, key), reverse=reverse)
+        return [benchmark_score_to_dict(s) for s in ranked[:limit]]
+
+    # Rank open-weight and closed models separately, then take up to half the
+    # limit from each and re-merge — so a flat sort (which closed frontier
+    # models tend to dominate on intelligence) can't crowd open models out.
+    limit_each = max(1, limit // 2)
+    open_ranked = sorted(
+        (s for s in ranked if s.is_open_weights is True),
+        key=lambda s: getattr(s, key),
+        reverse=reverse,
+    )
+    closed_ranked = sorted(
+        (s for s in ranked if s.is_open_weights is not True),
+        key=lambda s: getattr(s, key),
+        reverse=reverse,
+    )
+    combined = open_ranked[:limit_each] + closed_ranked[:limit_each]
+    combined.sort(key=lambda s: getattr(s, key), reverse=reverse)
+    return [benchmark_score_to_dict(s) for s in combined]
 
 
 @bp.get("/api/benchmarks")
@@ -20,7 +39,16 @@ def list_benchmarks():
     rank descending (higher is better), speed descends (faster), cost ascends
     (cheaper). Coding/math/agentic are only populated when the scoreboard is
     sourced from the Artificial Analysis API; they come back empty otherwise, and
-    the frontend hides the tabs for empty categories."""
+    the frontend hides the tabs for empty categories.
+
+    Query params: ?limit=N (default 10, total rows per category) and
+    ?balanced=1 (default off) to guarantee up to limit/2 open-weight and
+    limit/2 closed models each, re-merged by rank — used by the full
+    Benchmarks page's top-20 view; the Feed sidebar panel keeps the plain
+    flat top-10 default.
+    """
+    limit = request.args.get("limit", default=10, type=int)
+    balanced = request.args.get("balanced", default="").lower() in ("1", "true", "yes")
     session = get_session()
     try:
         scores = session.query(BenchmarkScore).all()
@@ -31,12 +59,12 @@ def list_benchmarks():
                 "enabled": Config.BENCHMARK_ENABLED,
                 "generated_at": generated_at.isoformat() if generated_at else None,
                 "source_note": source_note,
-                "intelligence": _top(scores, "intelligence", reverse=True),
-                "coding": _top(scores, "coding", reverse=True),
-                "math": _top(scores, "math", reverse=True),
-                "agentic": _top(scores, "agentic", reverse=True),
-                "speed": _top(scores, "speed", reverse=True),
-                "cost": _top(scores, "cost", reverse=False),
+                "intelligence": _top(scores, "intelligence", reverse=True, limit=limit, balanced=balanced),
+                "coding": _top(scores, "coding", reverse=True, limit=limit, balanced=balanced),
+                "math": _top(scores, "math", reverse=True, limit=limit, balanced=balanced),
+                "agentic": _top(scores, "agentic", reverse=True, limit=limit, balanced=balanced),
+                "speed": _top(scores, "speed", reverse=True, limit=limit, balanced=balanced),
+                "cost": _top(scores, "cost", reverse=False, limit=limit, balanced=balanced),
             }
         )
     finally:

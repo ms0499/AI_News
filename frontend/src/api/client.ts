@@ -58,10 +58,15 @@ export function fetchPioneers(): Promise<PioneersResponse> {
   return getJson<PioneersResponse>("/api/pioneers");
 }
 
-export function fetchLeaderboard(): Promise<LeaderboardResponse> {
-  return getJson<LeaderboardResponse>("/api/leaderboard");
+export function fetchLeaderboard(source?: string): Promise<LeaderboardResponse> {
+  const query = source ? `?source=${encodeURIComponent(source)}` : "";
+  return getJson<LeaderboardResponse>(`/api/leaderboard${query}`);
 }
 
-export function fetchBenchmarks(): Promise<BenchmarksResponse> {
-  return getJson<BenchmarksResponse>("/api/benchmarks");
+export function fetchBenchmarks(options: { limit?: number; balanced?: boolean } = {}): Promise<BenchmarksResponse> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.balanced) params.set("balanced", "1");
+  const query = params.toString();
+  return getJson<BenchmarksResponse>(`/api/benchmarks${query ? `?${query}` : ""}`);
 }

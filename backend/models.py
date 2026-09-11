@@ -148,6 +148,10 @@ class BenchmarkScore(Base):
     coding = Column(Float)  # coding/software-engineering index
     math = Column(Float)  # math/quantitative-reasoning index
     agentic = Column(Float)  # agentic / tool-use index
+    # True = open-weight model (Llama, Qwen, DeepSeek, ...), False = closed/API-only
+    # (GPT, Claude, Gemini, ...). NULL only if classification genuinely couldn't be
+    # determined. Powers the Leaderboard page's Open/Closed tabs.
+    is_open_weights = Column(Boolean)
     source_note = Column(Text)  # e.g. "Artificial Analysis, 2026-09-10"
     generated_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 

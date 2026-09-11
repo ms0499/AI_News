@@ -113,6 +113,7 @@ export interface BenchmarkScore {
   coding: number | null;
   math: number | null;
   agentic: number | null;
+  is_open_weights: boolean | null;
 }
 
 export interface BenchmarksResponse {
