@@ -253,9 +253,27 @@ def _dig(obj, *paths):
     return None
 
 
+def _aa_cost_per_task(item) -> float | None:
+    """AA's own pre-calculated cost (USD) to run one task of their Intelligence
+    Index evaluation — the exact number shown as "Cost" on artificialanalysis.ai.
+
+    Preferred over _standard_task_cost below because it's derived from each
+    model's *actual* token usage on real tasks, not a flat assumption. Reasoning
+    models routinely emit tens or hundreds of thousands of output tokens per
+    task (vs. the 2,000 STANDARD_TASK_OUTPUT_TOKENS assumed below), so a
+    price-only estimate can understate their real cost by 10-40x and rank them
+    as cheap when AA's own site shows them as expensive.
+    """
+    return _num(
+        _dig(item, "artificial_analysis_intelligence_index_cost.cost_per_task.total_cost")
+    )
+
+
 def _standard_task_cost(item) -> float | None:
-    """USD to run one standard task (~10k input + ~2k output tokens) at the
-    model's list price. Prices in the API are per 1M tokens.
+    """Fallback USD estimate for one standard task (~10k input + ~2k output
+    tokens) at the model's list price, used only when AA hasn't published a
+    real per-task cost (_aa_cost_per_task) for this model. Prices in the API
+    are per 1M tokens.
 
     The API reports a literal 0 (not a missing field) for models with no
     active paid provider — mostly deprecated or self-hosted-only entries
@@ -313,7 +331,9 @@ def _parse_artificial_analysis(payload) -> list[dict]:
                 "performance.median_output_tokens_per_second",
             )
         )
-        cost = _standard_task_cost(item)
+        cost = _aa_cost_per_task(item)
+        if cost is None:
+            cost = _standard_task_cost(item)
         # Per-category indices power the Coding / Math / Agentic leaderboards.
         # Only the AA source has these; the LLM fallback leaves them NULL.
         coding = _num(
@@ -323,6 +343,9 @@ def _parse_artificial_analysis(payload) -> list[dict]:
                 "artificial_analysis_coding_index",
             )
         )
+        # Not in AA's current (v4.3) methodology or API docs — only Coding and
+        # Agentic composites are documented now. Kept as a no-op lookup in case
+        # AA reintroduces it; the Math tab just stays empty/hidden without it.
         math = _num(
             _dig(
                 item,
@@ -363,10 +386,17 @@ def _parse_artificial_analysis(payload) -> list[dict]:
     return rows
 
 
+# Safety cap on pages fetched per refresh — the catalog is currently ~650
+# models at 200/page (~4 pages), so this is far more headroom than needed and
+# just guards against an infinite loop if the API ever misreports has_more.
+_MAX_CATALOG_PAGES = 15
+
+
 def _fetch_from_artificial_analysis() -> list[dict] | None:
-    """Pull the model catalog from the Artificial Analysis Data API and map it
-    to benchmark rows. Returns None if no key is configured or the request fails
-    (so the caller can fall back to the LLM generator)."""
+    """Pull the full model catalog from the Artificial Analysis Data API,
+    paging through results, and map it to benchmark rows. Returns None if no
+    key is configured or the request fails (so the caller can fall back to the
+    LLM generator)."""
     if not Config.ARTIFICIAL_ANALYSIS_API_KEY:
         return None
 
@@ -374,23 +404,32 @@ def _fetch_from_artificial_analysis() -> list[dict] | None:
         "benchmark: fetching from Artificial Analysis Data API (%s)",
         Config.ARTIFICIAL_ANALYSIS_API_URL,
     )
-    try:
-        resp = requests.get(
-            Config.ARTIFICIAL_ANALYSIS_API_URL,
-            headers={"x-api-key": Config.ARTIFICIAL_ANALYSIS_API_KEY},
-            timeout=Config.BENCHMARK_REQUEST_TIMEOUT,
-        )
-        resp.raise_for_status()
-        payload = resp.json()
-    except Exception as exc:
-        logger.warning("benchmark: Artificial Analysis request failed: %s", exc)
-        return None
+    rows: list[dict] = []
+    page = 1
+    while page <= _MAX_CATALOG_PAGES:
+        try:
+            resp = requests.get(
+                Config.ARTIFICIAL_ANALYSIS_API_URL,
+                headers={"x-api-key": Config.ARTIFICIAL_ANALYSIS_API_KEY},
+                params={"page": page},
+                timeout=Config.BENCHMARK_REQUEST_TIMEOUT,
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+        except Exception as exc:
+            logger.warning("benchmark: Artificial Analysis request failed (page %d): %s", page, exc)
+            return rows or None
 
-    try:
-        rows = _parse_artificial_analysis(payload)
-    except Exception:
-        logger.exception("benchmark: could not parse Artificial Analysis response")
-        return None
+        try:
+            rows.extend(_parse_artificial_analysis(payload))
+        except Exception:
+            logger.exception("benchmark: could not parse Artificial Analysis response (page %d)", page)
+            return rows or None
+
+        pagination = payload.get("pagination") if isinstance(payload, dict) else None
+        if not isinstance(pagination, dict) or not pagination.get("has_more"):
+            break
+        page += 1
 
     logger.info("benchmark: Artificial Analysis returned %d usable models", len(rows))
     return rows

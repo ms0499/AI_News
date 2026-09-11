@@ -141,7 +141,7 @@ class BenchmarkScore(Base):
     company = Column(String(200))
     intelligence = Column(Float)  # composite intelligence index, 0-100 (higher better)
     speed = Column(Float)  # median output tokens/sec (higher better)
-    cost = Column(Float)  # USD for a standard task (lower better)
+    cost = Column(Float)  # USD per AA Intelligence Index task (lower better)
     # Per-category indices, 0-100 (higher better). Populated when the scoreboard
     # is sourced from the Artificial Analysis API; NULL for the grounded-LLM
     # fallback source, which only produces the composite intelligence score.

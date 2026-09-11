@@ -29,14 +29,17 @@ class Config:
     # loop); if no AA key is configured, it falls back to the LLM generator below.
     # Off by default.
     BENCHMARK_ENABLED = os.environ.get("BENCHMARK_ENABLED", "false").lower() == "true"
-    # Artificial Analysis Data API key (free tier: 1,000 requests/day). Get one at
+    # Artificial Analysis Data API key (free tier: 100 requests/24h). Get one at
     # https://artificialanalysis.ai/insights. When set, this is the primary source
     # and no LLM/grounded generation request is made — the numbers are measured,
     # not a model's recollection, so they can't hallucinate or drift.
     ARTIFICIAL_ANALYSIS_API_KEY = os.environ.get("ARTIFICIAL_ANALYSIS_API_KEY")
+    # The free-tier language-models endpoint (see artificialanalysis.ai/data-api/docs).
+    # A Pro/Commercial key also works here — it just gets served the same
+    # free-shape body — so this one URL covers every tier without a 403.
     ARTIFICIAL_ANALYSIS_API_URL = os.environ.get(
         "ARTIFICIAL_ANALYSIS_API_URL",
-        "https://artificialanalysis.ai/api/v2/data/llms/models",
+        "https://artificialanalysis.ai/api/v2/language/models/free",
     )
     # --- LLM fallback (used only when no Artificial Analysis key is set) ---------
     BENCHMARK_MODEL = os.environ.get("BENCHMARK_MODEL", "gemini-2.5-pro")

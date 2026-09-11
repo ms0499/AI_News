@@ -7,9 +7,25 @@ from services.serialize import benchmark_score_to_dict
 
 bp = Blueprint("benchmarks", __name__)
 
+# Cost ranks every scored model ascending by price, so left unfiltered the
+# cheapest slots go to obscure/niche providers rather than the well-known labs
+# people actually compare prices across. Restrict the cost category to this
+# curated set of major labs before ranking.
+_FAMOUS_COMPANIES = {
+    "openai", "anthropic", "google", "google deepmind", "meta", "meta ai",
+    "xai", "deepseek", "alibaba", "qwen", "mistral", "mistral ai",
+    "microsoft", "amazon", "moonshot ai", "moonshot",
+}
 
-def _top(scores, key, reverse, limit=10, balanced=False):
+
+def _is_famous(score) -> bool:
+    return (score.company or "").strip().lower() in _FAMOUS_COMPANIES
+
+
+def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False):
     ranked = [s for s in scores if getattr(s, key) is not None]
+    if famous_only:
+        ranked = [s for s in ranked if _is_famous(s)]
     if not balanced:
         ranked.sort(key=lambda s: getattr(s, key), reverse=reverse)
         return [benchmark_score_to_dict(s) for s in ranked[:limit]]
@@ -39,7 +55,9 @@ def list_benchmarks():
     rank descending (higher is better), speed descends (faster), cost ascends
     (cheaper). Coding/math/agentic are only populated when the scoreboard is
     sourced from the Artificial Analysis API; they come back empty otherwise, and
-    the frontend hides the tabs for empty categories.
+    the frontend hides the tabs for empty categories. Cost is additionally
+    restricted to a curated set of well-known labs (see _FAMOUS_COMPANIES) so
+    the cheapest slots aren't dominated by obscure niche providers.
 
     Query params: ?limit=N (default 10, total rows per category) and
     ?balanced=1 (default off) to guarantee up to limit/2 open-weight and
@@ -64,7 +82,9 @@ def list_benchmarks():
                 "math": _top(scores, "math", reverse=True, limit=limit, balanced=balanced),
                 "agentic": _top(scores, "agentic", reverse=True, limit=limit, balanced=balanced),
                 "speed": _top(scores, "speed", reverse=True, limit=limit, balanced=balanced),
-                "cost": _top(scores, "cost", reverse=False, limit=limit, balanced=balanced),
+                "cost": _top(
+                    scores, "cost", reverse=False, limit=limit, balanced=balanced, famous_only=True
+                ),
             }
         )
     finally:

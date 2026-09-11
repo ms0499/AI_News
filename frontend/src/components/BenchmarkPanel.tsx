@@ -11,7 +11,7 @@ const TABS: { key: Metric; label: string; hint: string }[] = [
   { key: "math", label: "Math", hint: "Math & quantitative-reasoning index — higher is better" },
   { key: "agentic", label: "Agentic", hint: "Agentic tool-use index — higher is better" },
   { key: "speed", label: "Speed", hint: "Output tokens/sec — higher is faster" },
-  { key: "cost", label: "Cost / task", hint: "USD per standard task — lower is cheaper" },
+  { key: "cost", label: "Cost / task", hint: "USD per Intelligence Index task — lower is cheaper" },
 ];
 
 function metricValue(s: BenchmarkScore, m: Metric): number | null {
