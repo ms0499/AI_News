@@ -33,16 +33,52 @@ def _context_lookup(session) -> dict:
 # Cost ranks every scored model ascending by price, so left unfiltered the
 # cheapest slots go to obscure/niche providers rather than the well-known labs
 # people actually compare prices across. Restrict the cost category to this
-# curated set of major labs before ranking.
+# curated set of ~20 major labs before ranking. Keys are lower-cased company
+# names; several labs appear under more than one label from the AA data (e.g.
+# "google" / "google deepmind"), so include each variant we've seen.
 _FAMOUS_COMPANIES = {
     "openai", "anthropic", "google", "google deepmind", "meta", "meta ai",
     "xai", "deepseek", "alibaba", "qwen", "mistral", "mistral ai",
-    "microsoft", "amazon", "moonshot ai", "moonshot",
+    "microsoft", "amazon", "amazon web services", "aws", "moonshot ai", "moonshot",
+    "cohere", "ai21", "ai21 labs", "reka", "reka ai", "nvidia", "perplexity",
+    "zhipu", "zhipu ai", "z.ai", "baidu", "tencent", "minimax", "ibm",
+    "01.ai", "01 ai", "yi", "databricks", "lg", "lg ai research", "servicenow",
+    "nous research", "nous",
 }
 
 
 def _is_famous(score) -> bool:
     return (score.company or "").strip().lower() in _FAMOUS_COMPANIES
+
+
+def _top_per_company(scores, key):
+    """Collapse to one representative model per company: each company's *top*
+    model — the highest-intelligence one it has (falling back to the best value
+    of ``key`` when intelligence is missing). This is what makes the cost board
+    read as "top famous companies, each shown via its current flagship / most-
+    used top model" rather than the same lab appearing many times with cheap
+    legacy variants.
+
+    The reps are ordered by intelligence (prominence) descending, NOT by cost —
+    the user wants the heavily-used top models shown with their cost, not the
+    cheapest models ranked first. ``key`` (cost) is only used as the fallback
+    representative-selector and as an ordering tie-break."""
+    best_by_company: dict = {}
+    for s in scores:
+        company = (s.company or "").strip().lower()
+        rank_val = s.intelligence if s.intelligence is not None else getattr(s, key)
+        cur = best_by_company.get(company)
+        if cur is None or rank_val > cur[0]:
+            best_by_company[company] = (rank_val, s)
+    reps = [pair[1] for pair in best_by_company.values()]
+    reps.sort(
+        key=lambda s: (
+            s.intelligence if s.intelligence is not None else float("-inf"),
+            -(getattr(s, key) or 0),
+        ),
+        reverse=True,
+    )
+    return reps
 
 
 def _dump(score, ctx_lookup=None) -> dict:
@@ -55,7 +91,7 @@ def _dump(score, ctx_lookup=None) -> dict:
 
 
 def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False,
-         ctx_lookup=None, positive=False):
+         ctx_lookup=None, positive=False, per_company=False):
     ranked = [s for s in scores if getattr(s, key) is not None]
     # For money metrics a stored 0.0 means "no active paid provider / no pricing
     # data" (see benchmark_source._standard_task_cost), not "free" — drop them so
@@ -64,6 +100,12 @@ def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False,
         ranked = [s for s in ranked if getattr(s, key) > 0]
     if famous_only:
         ranked = [s for s in ranked if _is_famous(s)]
+    # Cost: one representative (top) model per company, ordered by prominence
+    # (intelligence), not cheapest-first. Keeps the board to ~20 famous companies'
+    # heavily-used flagship models rather than repeating a lab's cheap variants.
+    if per_company:
+        reps = _top_per_company(ranked, key)
+        return [_dump(s, ctx_lookup) for s in reps[:limit]]
     if not balanced:
         ranked.sort(key=lambda s: getattr(s, key), reverse=reverse)
         return [_dump(s, ctx_lookup) for s in ranked[:limit]]
@@ -127,8 +169,10 @@ def list_benchmarks():
     ascend (cheaper). Coding/math/agentic are only populated when the scoreboard is
     sourced from the Artificial Analysis API; they come back empty otherwise, and
     the frontend hides the tabs for empty categories. Cost and price are additionally
-    restricted to a curated set of well-known labs (see _FAMOUS_COMPANIES) so
-    the cheapest slots aren't dominated by obscure niche providers. Every score dict
+    restricted to a curated set of well-known labs (see _FAMOUS_COMPANIES) and
+    collapsed to one representative (top) model per company (see _top_per_company),
+    so the board shows the top ~20 famous companies via their current flagship model
+    rather than a lab's cheap legacy variants. Every score dict
     carries latency and context_length so each category tab can show those columns;
     context_length is backfilled from the Models catalog (_context_lookup) because
     the AA free endpoint doesn't return a context window.
@@ -148,10 +192,11 @@ def list_benchmarks():
         generated_at = max((s.generated_at for s in scores), default=None)
         source_note = scores[0].source_note if scores else None
 
-        def top(key, reverse, famous_only=False, positive=False):
+        def top(key, reverse, famous_only=False, positive=False, per_company=False):
             return _top(
                 scores, key, reverse=reverse, limit=limit, balanced=balanced,
-                famous_only=famous_only, ctx_lookup=ctx_lookup, positive=positive,
+                famous_only=famous_only, ctx_lookup=ctx_lookup,
+                positive=positive, per_company=per_company,
             )
 
         return jsonify(
@@ -165,9 +210,14 @@ def list_benchmarks():
                 "agentic": top("agentic", reverse=True),
                 "speed": top("speed", reverse=True),
                 # AA's real per-task cost (accounts for reasoning models' token use),
-                # cheapest first, restricted to well-known labs (_FAMOUS_COMPANIES)
-                # so the cheapest slots aren't dominated by obscure niche providers.
-                "cost": top("cost", reverse=False, famous_only=True, positive=True),
+                # restricted to well-known labs (_FAMOUS_COMPANIES) and collapsed to
+                # one representative (top) model per company, ordered by prominence
+                # (intelligence) — NOT cheapest-first — so the board reads as "top
+                # famous companies' heavily-used flagship models, with cost". The
+                # caller's limit applies (the Benchmarks page requests 25, which the
+                # one-per-company collapse naturally caps at ~20 famous labs).
+                "cost": top("cost", reverse=False, famous_only=True, positive=True,
+                            per_company=True),
                 # Blended $/M price (AA's "Price" column). Absent on the AA free
                 # tier, so this is typically empty; kept for API back-compat.
                 "price": top("price", reverse=False, famous_only=True, positive=True),

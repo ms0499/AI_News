@@ -40,7 +40,7 @@ const TABS: Tab[] = [
   { key: "intelligence", label: "Intelligence", metricLabel: "Intelligence", hint: "Artificial Analysis Intelligence Index", format: fmtIndex },
   { key: "coding", label: "Coding", metricLabel: "Coding", hint: "Coding Index", format: fmtIndex },
   { key: "agentic", label: "Agentic", metricLabel: "Agentic", hint: "Agentic / tool-use index", format: fmtIndex },
-  { key: "cost", label: "Cost", metricLabel: "Cost / task", hint: "USD to run one Artificial Analysis Intelligence Index task (cheapest first)", format: fmtCost },
+  { key: "cost", label: "Cost", metricLabel: "Cost / task", hint: "USD to run one Artificial Analysis Intelligence Index task — top famous companies' flagship models", format: fmtCost },
   { key: "speed", label: "Speed", metricLabel: "Speed (t/s)", hint: "Median output tokens/sec", format: (v) => `${Math.round(v)}` },
 ];
 
@@ -74,10 +74,13 @@ export default function Benchmarks() {
   const activeTab = TABS.find((t) => t.key === activeKey) ?? TABS[0];
   const rows = data?.[activeKey] ?? [];
 
-  // Latency / Context are shown in every tab, but hide either if no model in this
-  // tab has the value (so AA-missing metrics don't leave a dead all-"—" column).
-  const showLatency = rows.some((m) => m.latency != null);
-  const showContext = rows.some((m) => m.context_length != null);
+  // Latency / Context are shown for the index-style tabs, but deliberately hidden
+  // on Cost and Speed (the user wants those two focused on their own metric).
+  // Also hide either column if no model in this tab has the value, so AA-missing
+  // metrics don't leave a dead all-"—" column.
+  const auxColumnsAllowed = activeKey !== "cost" && activeKey !== "speed";
+  const showLatency = auxColumnsAllowed && rows.some((m) => m.latency != null);
+  const showContext = auxColumnsAllowed && rows.some((m) => m.context_length != null);
 
   const empty = status === "ready" && availableTabs.length === 0;
   const fromAA = (data?.source_note || "").toLowerCase().includes("artificial analysis");
@@ -92,7 +95,8 @@ export default function Benchmarks() {
           <a href="https://artificialanalysis.ai/models" target="_blank" rel="noreferrer">
             Artificial Analysis
           </a>{" "}
-          data. Latency and context window are shown alongside every category.
+          data. Latency and context window are shown on the index tabs; Cost and
+          Speed stay focused on their own metric.
         </p>
       </div>
 
