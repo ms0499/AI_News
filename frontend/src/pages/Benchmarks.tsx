@@ -8,13 +8,13 @@ type Metric = "intelligence" | "coding" | "math" | "agentic" | "speed" | "cost";
 
 const TOP_N = 20;
 
-const TABS: { key: Metric; label: string; icon: string; hint: string }[] = [
-  { key: "intelligence", label: "Intelligence", icon: "🧠", hint: "Composite intelligence index — higher is smarter" },
-  { key: "coding", label: "Coding", icon: "💻", hint: "Coding & software-engineering index — higher is better" },
-  { key: "math", label: "Math", icon: "🔢", hint: "Math & quantitative-reasoning index — higher is better" },
-  { key: "agentic", label: "Agentic", icon: "🤖", hint: "Agentic tool-use index — higher is better" },
-  { key: "speed", label: "Speed", icon: "⚡", hint: "Output tokens/sec — higher is faster" },
-  { key: "cost", label: "Cost / task", icon: "💰", hint: "USD for a standard ~10K-in/2K-out task — lower is cheaper" },
+const TABS: { key: Metric; label: string; hint: string }[] = [
+  { key: "intelligence", label: "Intelligence", hint: "Composite intelligence index — higher is smarter" },
+  { key: "coding", label: "Coding", hint: "Coding & software-engineering index — higher is better" },
+  { key: "math", label: "Math", hint: "Math & quantitative-reasoning index — higher is better" },
+  { key: "agentic", label: "Agentic", hint: "Agentic tool-use index — higher is better" },
+  { key: "speed", label: "Speed", hint: "Output tokens/sec — higher is faster" },
+  { key: "cost", label: "Cost / task", hint: "USD for a standard ~10K-in/2K-out task — lower is cheaper" },
 ];
 
 function metricValue(s: BenchmarkScore, m: Metric): number | null {
@@ -95,7 +95,6 @@ export default function Benchmarks() {
             className={`benchmarks-tab${t.key === tab ? " is-active" : ""}`}
             onClick={() => setTab(t.key)}
           >
-            <span className="benchmarks-tab__icon">{t.icon}</span>
             {t.label}
           </button>
         ))}
