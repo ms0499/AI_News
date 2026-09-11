@@ -4,36 +4,45 @@ import type { BenchmarkScore, BenchmarksResponse } from "../api/types";
 import StateNotice from "../components/StateNotice";
 import "./Benchmarks.css";
 
-type Metric = "intelligence" | "coding" | "math" | "agentic" | "speed" | "cost";
+const TOP_N = 25;
 
-const TOP_N = 20;
+// One tab per benchmark category. `field` is both the response array key and the
+// BenchmarkScore property the primary column reads. Each tab is ranked server-side
+// by that metric; every tab additionally shows Latency and Context columns.
+type TabKey = "intelligence" | "coding" | "agentic" | "price" | "speed";
 
-const TABS: { key: Metric; label: string; hint: string }[] = [
-  { key: "intelligence", label: "Intelligence", hint: "Composite intelligence index — higher is smarter" },
-  { key: "coding", label: "Coding", hint: "Coding & software-engineering index — higher is better" },
-  { key: "math", label: "Math", hint: "Math & quantitative-reasoning index — higher is better" },
-  { key: "agentic", label: "Agentic", hint: "Agentic tool-use index — higher is better" },
-  { key: "speed", label: "Speed", hint: "Output tokens/sec — higher is faster" },
-  { key: "cost", label: "Cost / task", hint: "USD for a standard ~10K-in/2K-out task — lower is cheaper" },
+interface Tab {
+  key: TabKey;
+  label: string;
+  metricLabel: string;
+  hint: string;
+  format: (v: number) => string;
+}
+
+function fmtContext(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 ? 1 : 0)}M`;
+  if (v >= 1_000) return `${Math.round(v / 1_000)}K`;
+  return String(v);
+}
+
+const fmtIndex = (v: number) => String(Math.round(v));
+const fmtLatency = (v: number) => `${v.toFixed(2)}s`;
+
+const TABS: Tab[] = [
+  { key: "intelligence", label: "Intelligence", metricLabel: "Intelligence", hint: "Artificial Analysis Intelligence Index", format: fmtIndex },
+  { key: "coding", label: "Coding", metricLabel: "Coding", hint: "Coding Index", format: fmtIndex },
+  { key: "agentic", label: "Agentic", metricLabel: "Agentic", hint: "Agentic / tool-use index", format: fmtIndex },
+  { key: "price", label: "Price", metricLabel: "Price ($/M)", hint: "Blended price, USD per 1M tokens (3:1)", format: (v) => `$${v.toFixed(2)}` },
+  { key: "speed", label: "Speed", metricLabel: "Speed (t/s)", hint: "Median output tokens/sec", format: (v) => `${Math.round(v)}` },
 ];
-
-function metricValue(s: BenchmarkScore, m: Metric): number | null {
-  return s[m];
-}
-
-function formatValue(v: number, m: Metric): string {
-  if (m === "speed") return `${Math.round(v)} t/s`;
-  if (m === "cost") return v < 1 ? `$${v.toFixed(3)}` : `$${v.toFixed(2)}`;
-  return String(Math.round(v));
-}
 
 export default function Benchmarks() {
   const [data, setData] = useState<BenchmarksResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [tab, setTab] = useState<Metric>("intelligence");
+  const [activeKey, setActiveKey] = useState<TabKey>("intelligence");
 
   useEffect(() => {
-    fetchBenchmarks({ limit: TOP_N, balanced: true })
+    fetchBenchmarks({ limit: TOP_N })
       .then((res) => {
         setData(res);
         setStatus("ready");
@@ -41,79 +50,42 @@ export default function Benchmarks() {
       .catch(() => setStatus("error"));
   }, []);
 
-  // Coding/math/agentic only populate from the Artificial Analysis source —
-  // hide tabs that come back empty rather than showing a dead tab.
-  const visibleTabs = useMemo(
+  // Only show tabs that actually have rows (AA's free API may not populate every
+  // category), and always keep the active tab on a populated one.
+  const availableTabs = useMemo(
     () => TABS.filter((t) => (data?.[t.key]?.length ?? 0) > 0),
     [data],
   );
 
   useEffect(() => {
-    if (visibleTabs.length && !visibleTabs.some((t) => t.key === tab)) {
-      setTab(visibleTabs[0].key);
+    if (availableTabs.length && !availableTabs.some((t) => t.key === activeKey)) {
+      setActiveKey(availableTabs[0].key);
     }
-  }, [visibleTabs, tab]);
+  }, [availableTabs, activeKey]);
 
-  const rows = data ? data[tab] : [];
-  const openCount = rows.filter((r) => r.is_open_weights === true).length;
-  const closedCount = rows.length - openCount;
+  const activeTab = TABS.find((t) => t.key === activeKey) ?? TABS[0];
+  const rows = data?.[activeKey] ?? [];
 
-  // Normalise bar widths so "longer = better": intelligence/coding/math/
-  // agentic/speed scale to the max, cost scales to the min (cheapest fills).
-  const scale = useMemo(() => {
-    const vals = rows.map((r) => metricValue(r, tab)).filter((v): v is number => v != null);
-    if (!vals.length) return () => 0;
-    const max = Math.max(...vals);
-    const min = Math.min(...vals);
-    return (v: number) => (tab === "cost" ? (min > 0 ? (min / v) * 100 : 0) : max > 0 ? (v / max) * 100 : 0);
-  }, [rows, tab]);
+  // Latency / Context are shown in every tab, but hide either if no model in this
+  // tab has the value (so AA-missing metrics don't leave a dead all-"—" column).
+  const showLatency = rows.some((m) => m.latency != null);
+  const showContext = rows.some((m) => m.context_length != null);
 
-  const activeTab = TABS.find((t) => t.key === tab)!;
-  const empty = status === "ready" && rows.length === 0;
+  const empty = status === "ready" && availableTabs.length === 0;
   const fromAA = (data?.source_note || "").toLowerCase().includes("artificial analysis");
-
-  // Split into two columns (1-10 / 11-20) on wide screens.
-  const half = Math.ceil(rows.length / 2);
-  const columns = [rows.slice(0, half), rows.slice(half)];
+  const updated = data?.generated_at ? new Date(data.generated_at).toLocaleDateString() : null;
 
   return (
     <>
       <div className="page-header">
         <h1>Benchmarks</h1>
         <p>
-          Top {TOP_N} models across every scored category — open-weight and closed models both represented,
-          ranked separately then merged.
+          Top models per category, ranked from{" "}
+          <a href="https://artificialanalysis.ai/models" target="_blank" rel="noreferrer">
+            Artificial Analysis
+          </a>{" "}
+          data. Latency and context window are shown alongside every category.
         </p>
-      </div>
-
-      <div className="benchmarks-tabs" role="tablist">
-        {(visibleTabs.length ? visibleTabs : TABS).map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={t.key === tab}
-            className={`benchmarks-tab${t.key === tab ? " is-active" : ""}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="benchmarks-subbar">
-        <p className="benchmarks-hint">{activeTab.hint}.</p>
-        {rows.length > 0 && (
-          <div className="benchmarks-legend">
-            <span className="benchmarks-legend__item">
-              <span className="benchmarks-legend__dot benchmarks-legend__dot--open" />
-              Open-weight ({openCount})
-            </span>
-            <span className="benchmarks-legend__item">
-              <span className="benchmarks-legend__dot benchmarks-legend__dot--closed" />
-              Closed ({closedCount})
-            </span>
-          </div>
-        )}
       </div>
 
       {status === "loading" && <StateNotice kind="loading" message="Loading benchmarks…" />}
@@ -124,55 +96,91 @@ export default function Benchmarks() {
           message={
             data?.enabled
               ? "No benchmark data yet — run ingestion to generate it."
-              : "Benchmarks are off. Set BENCHMARK_ENABLED=true and add a model key, then run ingestion."
+              : "Benchmarks are off. Set BENCHMARK_ENABLED=true and add an Artificial Analysis API key, then run ingestion."
           }
         />
       )}
 
-      {status === "ready" && rows.length > 0 && (
-        <div className="benchmarks-columns">
-          {columns.map((col, colIdx) => (
-            <ol className="benchmarks-list" key={colIdx} start={colIdx === 0 ? 1 : half + 1}>
-              {col.map((row, i) => {
-                const rank = colIdx === 0 ? i + 1 : half + i + 1;
-                const v = metricValue(row, tab);
-                return (
-                  <li className="benchmarks-row" key={`${tab}-${row.id}`} data-rank={rank}>
-                    <div className="benchmarks-row__top">
-                      <span className="benchmarks-row__rank">{rank}</span>
-                      <span className="benchmarks-row__name">
-                        <span className="benchmarks-row__model">{row.model_name}</span>
-                        <span className="benchmarks-row__meta">
-                          {row.company && <span className="benchmarks-row__company">{row.company}</span>}
+      {status === "ready" && availableTabs.length > 0 && (
+        <>
+          <div className="bench-tabs" role="tablist">
+            {availableTabs.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={t.key === activeKey}
+                className={`bench-tab${t.key === activeKey ? " is-active" : ""}`}
+                onClick={() => setActiveKey(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="bench-table-wrap">
+            <table className="bench-table">
+              <thead>
+                <tr>
+                  <th className="bench-th bench-th--rank">#</th>
+                  <th className="bench-th bench-th--model">Model</th>
+                  <th className="bench-th bench-th--num is-sorted" title={activeTab.hint}>
+                    {activeTab.metricLabel}
+                  </th>
+                  {showLatency && (
+                    <th className="bench-th bench-th--num" title="Median time to first token (s)">
+                      Latency
+                    </th>
+                  )}
+                  {showContext && (
+                    <th className="bench-th bench-th--num" title="Context window (tokens)">
+                      Context
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((m: BenchmarkScore, i) => (
+                  <tr className="bench-row" key={m.id}>
+                    <td className="bench-td bench-td--rank">{i + 1}</td>
+                    <td className="bench-td bench-td--model">
+                      <span className="bench-model">{m.model_name}</span>
+                      <span className="bench-model__meta">
+                        {m.company && <span className="bench-model__company">{m.company}</span>}
+                        {m.is_open_weights != null && (
                           <span
-                            className={`benchmarks-row__badge benchmarks-row__badge--${
-                              row.is_open_weights ? "open" : "closed"
-                            }`}
+                            className={`bench-badge bench-badge--${m.is_open_weights ? "open" : "closed"}`}
                           >
-                            {row.is_open_weights ? "Open" : "Closed"}
+                            {m.is_open_weights ? "Open" : "Closed"}
                           </span>
-                        </span>
+                        )}
                       </span>
-                      <span className="benchmarks-row__score">{v != null ? formatValue(v, tab) : "—"}</span>
-                    </div>
-                    <div className="benchmarks-row__bar">
-                      <span
-                        className={`benchmarks-row__fill benchmarks-row__fill--${tab}`}
-                        style={{ width: `${v != null ? scale(v) : 0}%` }}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          ))}
-        </div>
+                    </td>
+                    <td className="bench-td bench-td--num is-sorted">
+                      {m[activeKey] != null ? activeTab.format(m[activeKey] as number) : "—"}
+                    </td>
+                    {showLatency && (
+                      <td className="bench-td bench-td--num">
+                        {m.latency != null ? fmtLatency(m.latency) : "—"}
+                      </td>
+                    )}
+                    {showContext && (
+                      <td className="bench-td bench-td--num">
+                        {m.context_length != null ? fmtContext(m.context_length) : "—"}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {status === "ready" && data?.source_note && (
-        <p className="benchmarks-footer">
-          {fromAA ? "Source: " : "AI-generated from web sources · "}
+        <p className="bench-footer">
+          {fromAA ? "Source: " : "AI-generated · "}
           {data.source_note}
+          {updated ? ` · updated ${updated}` : ""}
         </p>
       )}
     </>

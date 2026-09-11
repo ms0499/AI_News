@@ -1,5 +1,6 @@
 import type {
   BenchmarksResponse,
+  BenchmarkTableResponse,
   CompaniesResponse,
   CompanyDetailResponse,
   FeedResponse,
@@ -69,4 +70,10 @@ export function fetchBenchmarks(options: { limit?: number; balanced?: boolean } 
   if (options.balanced) params.set("balanced", "1");
   const query = params.toString();
   return getJson<BenchmarksResponse>(`/api/benchmarks${query ? `?${query}` : ""}`);
+}
+
+/** AA-style single comparison table: top N models by Intelligence Index, all
+ * columns, no balanced/famous re-ranking. Mirrors artificialanalysis.ai/models. */
+export function fetchBenchmarkTable(limit = 25): Promise<BenchmarkTableResponse> {
+  return getJson<BenchmarkTableResponse>(`/api/benchmarks/table?limit=${limit}`);
 }

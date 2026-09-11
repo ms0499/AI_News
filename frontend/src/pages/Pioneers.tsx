@@ -51,6 +51,22 @@ export default function Pioneers() {
             {pioneer.contribution && <p className="pioneer-card__contribution">{pioneer.contribution}</p>}
             {pioneer.bio && <p className="pioneer-card__bio">{pioneer.bio}</p>}
 
+            {pioneer.latest_quote && (
+              <blockquote className="pioneer-card__quote">
+                <p>“{pioneer.latest_quote}”</p>
+                <footer>
+                  {pioneer.quote_source_url ? (
+                    <a href={pioneer.quote_source_url} target="_blank" rel="noreferrer">
+                      {pioneer.quote_source_label || "Source"}
+                    </a>
+                  ) : (
+                    pioneer.quote_source_label
+                  )}
+                  {pioneer.quote_date && <> · {pioneer.quote_date}</>}
+                </footer>
+              </blockquote>
+            )}
+
             {pioneer.links.length > 0 && (
               <div className="pioneer-card__links">
                 {pioneer.links.map((link) => (

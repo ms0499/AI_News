@@ -114,6 +114,14 @@ class Pioneer(Base):
     links = Column(JSONB, default=list)  # list[{"label": str, "url": str}]
     sort_order = Column(Integer, nullable=False, default=0)
 
+    # A recent public quote/statement, hand-curated alongside the rest of the
+    # bio (see data/curated_pioneers.py) rather than scraped — same rationale
+    # as the bio fields: there's no reliable feed of "notable AI quotes".
+    latest_quote = Column(Text)
+    quote_date = Column(String(50))  # e.g. "March 2026"
+    quote_source_label = Column(String(200))  # e.g. "Dwarkesh Podcast"
+    quote_source_url = Column(Text)
+
 
 class LeaderboardEntry(Base):
     __tablename__ = "leaderboard_entries"
@@ -148,6 +156,13 @@ class BenchmarkScore(Base):
     coding = Column(Float)  # coding/software-engineering index
     math = Column(Float)  # math/quantitative-reasoning index
     agentic = Column(Float)  # agentic / tool-use index
+    # Columns to mirror the artificialanalysis.ai/models comparison table.
+    # Populated only from the Artificial Analysis source; NULL for the LLM
+    # fallback. price = blended $/M tokens (3:1), the number AA shows as "Price";
+    # latency = median time-to-first-token in seconds; context_length in tokens.
+    price = Column(Float)
+    latency = Column(Float)
+    context_length = Column(Integer)
     # True = open-weight model (Llama, Qwen, DeepSeek, ...), False = closed/API-only
     # (GPT, Claude, Gemini, ...). NULL only if classification genuinely couldn't be
     # determined. Powers the Leaderboard page's Open/Closed tabs.

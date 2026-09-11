@@ -83,6 +83,10 @@ export interface Pioneer {
   bio: string | null;
   photo_url: string | null;
   links: PioneerLink[];
+  latest_quote: string | null;
+  quote_date: string | null;
+  quote_source_label: string | null;
+  quote_source_url: string | null;
 }
 
 export interface PioneersResponse {
@@ -113,7 +117,17 @@ export interface BenchmarkScore {
   coding: number | null;
   math: number | null;
   agentic: number | null;
+  price: number | null;
+  latency: number | null;
+  context_length: number | null;
   is_open_weights: boolean | null;
+}
+
+export interface BenchmarkTableResponse {
+  enabled: boolean;
+  generated_at: string | null;
+  source_note: string | null;
+  models: BenchmarkScore[];
 }
 
 export interface BenchmarksResponse {
@@ -126,4 +140,5 @@ export interface BenchmarksResponse {
   agentic: BenchmarkScore[];
   speed: BenchmarkScore[];
   cost: BenchmarkScore[];
+  price: BenchmarkScore[];
 }

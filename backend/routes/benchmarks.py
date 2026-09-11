@@ -49,15 +49,49 @@ def _top(scores, key, reverse, limit=10, balanced=False, famous_only=False):
     return [benchmark_score_to_dict(s) for s in combined]
 
 
+@bp.get("/api/benchmarks/table")
+def benchmark_table():
+    """One comparison table that mirrors artificialanalysis.ai/models: every
+    scored model with an Intelligence Index, sorted by Intelligence Index
+    descending, top ``limit`` (default 25 — AA's own default page size), with all
+    columns (intelligence, coding, agentic, price, speed, latency, context).
+
+    Deliberately NO balanced open/closed split and NO famous-only cost filter —
+    those re-orderings are what made our board diverge from AA's page. This is a
+    straight top-N-by-intelligence view, exactly like AA's default sort.
+
+    Query param: ?limit=N (default 25).
+    """
+    limit = request.args.get("limit", default=25, type=int)
+    session = get_session()
+    try:
+        scores = session.query(BenchmarkScore).all()
+        ranked = [s for s in scores if s.intelligence is not None]
+        ranked.sort(key=lambda s: s.intelligence, reverse=True)
+        generated_at = max((s.generated_at for s in scores), default=None)
+        source_note = scores[0].source_note if scores else None
+        return jsonify(
+            {
+                "enabled": Config.BENCHMARK_ENABLED,
+                "generated_at": generated_at.isoformat() if generated_at else None,
+                "source_note": source_note,
+                "models": [benchmark_score_to_dict(s) for s in ranked[:limit]],
+            }
+        )
+    finally:
+        session.close()
+
+
 @bp.get("/api/benchmarks")
 def list_benchmarks():
     """Category leaderboards from one scored set. Intelligence/coding/math/agentic
-    rank descending (higher is better), speed descends (faster), cost ascends
-    (cheaper). Coding/math/agentic are only populated when the scoreboard is
+    rank descending (higher is better), speed descends (faster), cost and price
+    ascend (cheaper). Coding/math/agentic are only populated when the scoreboard is
     sourced from the Artificial Analysis API; they come back empty otherwise, and
-    the frontend hides the tabs for empty categories. Cost is additionally
+    the frontend hides the tabs for empty categories. Cost and price are additionally
     restricted to a curated set of well-known labs (see _FAMOUS_COMPANIES) so
-    the cheapest slots aren't dominated by obscure niche providers.
+    the cheapest slots aren't dominated by obscure niche providers. Every score dict
+    carries latency and context_length so each category tab can show those columns.
 
     Query params: ?limit=N (default 10, total rows per category) and
     ?balanced=1 (default off) to guarantee up to limit/2 open-weight and
@@ -84,6 +118,12 @@ def list_benchmarks():
                 "speed": _top(scores, "speed", reverse=True, limit=limit, balanced=balanced),
                 "cost": _top(
                     scores, "cost", reverse=False, limit=limit, balanced=balanced, famous_only=True
+                ),
+                # Blended $/M price (AA's "Price" column), cheapest first. Like the
+                # cost tab it's restricted to well-known labs (see _FAMOUS_COMPANIES)
+                # so the cheapest slots aren't dominated by obscure niche providers.
+                "price": _top(
+                    scores, "price", reverse=False, limit=limit, balanced=balanced, famous_only=True
                 ),
             }
         )

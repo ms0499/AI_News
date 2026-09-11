@@ -360,6 +360,32 @@ def _parse_artificial_analysis(payload) -> list[dict]:
                 "artificial_analysis_agentic_index",
             )
         )
+        # Columns that mirror artificialanalysis.ai/models directly:
+        # blended price ($/M, the "Price" column), latency (time-to-first-token),
+        # and context window. Best-effort — any missing field stays NULL and the
+        # table shows "—" for that cell rather than failing the whole row.
+        price = _num(
+            _dig(item, "pricing.price_1m_blended_3_to_1", "price.price_1m_blended_3_to_1")
+        )
+        latency = _num(
+            _dig(
+                item,
+                "median_time_to_first_token_seconds",
+                "performance.median_time_to_first_token_seconds",
+                "evaluations.median_time_to_first_token_seconds",
+            )
+        )
+        context_length = _num(
+            _dig(
+                item,
+                "context_window",
+                "context_length",
+                "token_limit",
+                "limits.context_length",
+                "limits.context_window",
+            )
+        )
+        context_length = int(context_length) if context_length else None
         company = str(company).strip() if company else None
         # Real license data (Pro tier only) wins when present; otherwise fall
         # back to the company/name heuristic below.
@@ -380,6 +406,9 @@ def _parse_artificial_analysis(payload) -> list[dict]:
                 "coding": coding,
                 "math": math,
                 "agentic": agentic,
+                "price": price,
+                "latency": latency,
+                "context_length": context_length,
                 "is_open_weights": is_open_weights,
             }
         )

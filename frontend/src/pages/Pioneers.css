@@ -73,6 +73,35 @@
   line-height: 1.55;
 }
 
+.pioneer-card__quote {
+  margin: 0;
+  padding: 8px 0 8px 12px;
+  border-left: 2px solid var(--cyan);
+}
+
+.pioneer-card__quote p {
+  margin: 0;
+  font-size: 0.86rem;
+  font-style: italic;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.pioneer-card__quote footer {
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.pioneer-card__quote footer a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+.pioneer-card__quote footer a:hover {
+  text-decoration: underline;
+}
+
 .pioneer-card__links {
   display: flex;
   flex-wrap: wrap;

@@ -71,6 +71,10 @@ def pioneer_to_dict(pioneer) -> dict:
         "bio": pioneer.bio,
         "photo_url": pioneer.photo_url,
         "links": pioneer.links or [],
+        "latest_quote": pioneer.latest_quote,
+        "quote_date": pioneer.quote_date,
+        "quote_source_label": pioneer.quote_source_label,
+        "quote_source_url": pioneer.quote_source_url,
     }
 
 
@@ -85,6 +89,9 @@ def benchmark_score_to_dict(score) -> dict:
         "coding": score.coding,
         "math": score.math,
         "agentic": score.agentic,
+        "price": score.price,
+        "latency": score.latency,
+        "context_length": score.context_length,
         "is_open_weights": score.is_open_weights,
     }
 

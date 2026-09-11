@@ -34,6 +34,10 @@ def run() -> dict:
                 "photo_url": entry.get("photo_url"),
                 "links": entry.get("links", []),
                 "sort_order": sort_order,
+                "latest_quote": entry.get("latest_quote"),
+                "quote_date": entry.get("quote_date"),
+                "quote_source_label": entry.get("quote_source_label"),
+                "quote_source_url": entry.get("quote_source_url"),
             }
             if pioneer is None:
                 session.add(Pioneer(slug=entry["slug"], **fields))
