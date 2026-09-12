@@ -67,6 +67,18 @@ def ingest_items(
 
         source = get_or_create_source(session, item["source_name"], source_type)
         tags = classify(item["title"], item.get("raw_summary", ""), item["source_name"])
+
+        # Some feeds (seen on OpenAI's blog) occasionally carry a bogus future
+        # pubDate. A future published_at sorts the article above everything real
+        # forever and makes the frontend's relative-time display permanently read
+        # "just now", so clamp to fetch time instead of trusting the feed blindly.
+        published_at = item.get("published_at")
+        if published_at is not None:
+            now = datetime.now(timezone.utc)
+            if published_at.tzinfo is None:
+                published_at = published_at.replace(tzinfo=timezone.utc)
+            if published_at > now:
+                published_at = now
         # Summarize only while this run still has AI budget left. Past the cap,
         # ai_result stays None and the article keeps its raw summary — so a large
         # backlog degrades gracefully instead of exhausting the daily quota.
@@ -84,7 +96,7 @@ def ingest_items(
             title=item["title"],
             url=url,
             author=item.get("author"),
-            published_at=item.get("published_at"),
+            published_at=published_at,
             raw_summary=item.get("raw_summary"),
             ai_summary=(ai_result or {}).get("summary"),
             image_url=item.get("image_url"),
